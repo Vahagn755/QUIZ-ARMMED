@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Շտապ օգնություն</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: var(--tg-theme-bg-color, #0f1117);
+    --card: var(--tg-theme-secondary-bg-color, #1b1e29);
+    --text: var(--tg-theme-text-color, #f2f3f7);
+    --hint: var(--tg-theme-hint-color, #8b90a3);
+    --accent: var(--tg-theme-button-color, #e5484d);
+    --accent-text: var(--tg-theme-button-text-color, #ffffff);
+    --ok: #2fb67c;
+    --bad: #e5484d;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, "Noto Sans Armenian", sans-serif;
+    line-height: 1.45; padding: 16px 16px 40px; min-height: 100vh;
+  }
+  .screen { display: none; max-width: 560px; margin: 0 auto; }
+  .screen.active { display: block; }
+  h1 { font-size: 26px; margin: 24px 0 6px; text-align: center; }
+  .sub { color: var(--hint); text-align: center; margin: 0 0 24px; }
+  .emoji { font-size: 56px; text-align: center; margin-top: 20px; }
+  .card { background: var(--card); border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+  .btn {
+    display: block; width: 100%; border: 0; border-radius: 14px; padding: 15px;
+    font-size: 16px; font-weight: 600; background: var(--accent); color: var(--accent-text);
+    cursor: pointer; margin-top: 12px;
+  }
+  .btn.ghost { background: var(--card); color: var(--text); }
+  .progress { height: 6px; background: var(--card); border-radius: 3px; overflow: hidden; margin-bottom: 14px; }
+  .progress > div { height: 100%; background: var(--accent); width: 0; transition: width .3s; }
+  .meta { display: flex; justify-content: space-between; color: var(--hint); font-size: 13px; margin-bottom: 8px; }
+  .tag { padding: 2px 10px; border-radius: 10px; background: var(--card); }
+  .case-title { font-weight: 700; font-size: 18px; margin: 0 0 8px; }
+  .q { font-weight: 600; margin-top: 12px; }
+  .opt {
+    display: block; width: 100%; text-align: left; border: 2px solid transparent;
+    background: var(--card); color: var(--text); border-radius: 14px; padding: 14px;
+    font-size: 15px; margin-top: 10px; cursor: pointer;
+  }
+  .opt.correct { border-color: var(--ok); background: rgba(47,182,124,.15); }
+  .opt.wrong { border-color: var(--bad); background: rgba(229,72,77,.15); }
+  .opt:disabled { cursor: default; opacity: 1; }
+  .explain { display: none; margin-top: 14px; border-left: 4px solid var(--accent); }
+  .explain.show { display: block; }
+  .explain b { display: block; margin-bottom: 6px; }
+  .score { font-size: 54px; font-weight: 800; text-align: center; margin: 10px 0; }
+  .review-item { font-size: 14px; padding: 8px 0; border-bottom: 1px solid rgba(128,128,128,.2); }
+  .disclaimer { color: var(--hint); font-size: 12px; text-align: center; margin-top: 24px; }
+</style>
+</head>
+<body>
+
+<!-- Գլխավոր -->
+<div id="home" class="screen active">
+  <div class="emoji">🚑</div>
+  <h1>Շտապ օգնություն</h1>
+  <p class="sub">Կլինիկական քեյսեր շտապ օգնության համար։<br>Որոշիր՝ ինչ անել առաջինը։</p>
+  <div class="card">
+    <div>📋 <b id="count">10</b> քեյս՝ հեշտից բարդ</div>
+    <div style="margin-top:6px">💡 Յուրաքանչյուր պատասխանից հետո՝ բացատրություն</div>
+  </div>
+  <button class="btn" id="startBtn">Սկսել</button>
+  <p class="disclaimer">Միայն ուսումնական նպատակով։ Չի փոխարինում պրոտոկոլներին և բժշկի որոշմանը։</p>
+</div>
+
+<!-- Քվիզ -->
+<div id="quiz" class="screen">
+  <div class="progress"><div id="bar"></div></div>
+  <div class="meta"><span id="num"></span><span class="tag" id="level"></span></div>
+  <div class="card">
+    <p class="case-title" id="title"></p>
+    <div id="story"></div>
+    <div class="q" id="question"></div>
+  </div>
+  <div id="options"></div>
+  <div class="card explain" id="explain"><b id="verdict"></b><span id="why"></span></div>
+  <button class="btn" id="nextBtn" style="display:none">Հաջորդը</button>
+</div>
+
+<!-- Արդյունք -->
+<div id="result" class="screen">
+  <div class="emoji" id="rEmoji">🏁</div>
+  <h1>Արդյունք</h1>
+  <div class="score" id="score"></div>
+  <p class="sub" id="rMsg"></p>
+  <div class="card" id="review"></div>
+  <button class="btn" id="againBtn">Կրկին փորձել</button>
+  <button class="btn ghost" id="closeBtn">Փակել</button>
+</div>
+
+<script>
+const tg = window.Telegram && Telegram.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+const haptic = (t) => { try { tg.HapticFeedback.notificationOccurred(t); } catch(e){} };
+
+// ---- ՔԵՅՍԵՐ ----
+// c = ճիշտ տարբերակի ինդեքս (0-ից)
+const CASES = [
+  { lvl: 1, title: "Կրծքավանդակի ցավ",
+    story: "58 տարեկան տղամարդ, 40 րոպե է՝ սեղմող ցավ կրծքի հետևում, տարածվում է ձախ թևի և ծնոտի վրա։ Սառը քրտինք, սրտխառնոց։ ԷկԳ-ում՝ ST-ի բարձրացում II, III, aVF կապերում։",
+    q: "Ո՞րն է ամենահավանական ախտորոշումը։",
+    o: ["Սուր պերիկարդիտ", "Սրտամկանի սուր վարակտ (ստորին պատի STEMI)", "Թոքային զարկերակի թրոմբէմբոլիա", "Գաստրոէզոֆագեալ ռեֆլյուքս"],
+    c: 1,
+    why: "ST-ի բարձրացումը II, III, aVF կապերում ցույց է տալիս սրտի ստորին պատի վնասում։ Կարիք է ռեպերֆուզիայի՝ շտապ տեղափոխում PCI-ի հնարավորություն ունեցող կենտրոն, ասպիրին, ցավի վերահսկում։ Ստորին վարակտի դեպքում նիտրատներից զգուշացեք՝ աջ փորոքի ներգրավման և հիպոտենզիայի վտանգ կա։" },
+
+  { lvl: 1, title: "Մեղվի խայթոց",
+    story: "27 տարեկան կին՝ իշամեղվի խայթոցից 10 րոպե անց։ Ամբողջ մարմնով ուրտիկարիա, շնչահեղձություն, սուլոցային շնչառություն, դեմքի այտուց։ ԶՃ՝ 70/40, պուլս՝ 130։",
+    q: "Ո՞ր դեղը պետք է առաջինը տալ։",
+    o: ["Դեքսամետազոն ներերակային", "Հակահիստամինային դեղ (դիֆենհիդրամին)", "Ադրենալին (էպինեֆրին) միջմկանային", "Սալբուտամոլ ինհալյացիա"],
+    c: 2,
+    why: "Սա անաֆիլակտիկ շոկ է։ Առաջին և հիմնական դեղը ադրենալինն է՝ միջմկանային, ազդրի առաջանցք-կողմնային մակերեսին (մեծահասակին սովորաբար 0,3–0,5 մգ), անհրաժեշտության դեպքում կրկնել 5–15 րոպեն մեկ։ Հակահիստամինները և կորտիկոստերոիդները օժանդակ են և չեն փրկում կյանքը։ Հետո՝ պառկեցնել, ոտքերը բարձր, թթվածին, հեղուկ։" },
+
+  { lvl: 1, title: "Անգիտակից դիաբետիկ",
+    story: "45 տարեկան տղամարդ, շաքարային դիաբետ 1-ին տիպ։ Հայտնաբերվել է անգիտակից, մաշկը խոնավ ու սառը։ Գլյուկոմետրով՝ 1,8 մմոլ/լ։ Երակային մուտքն ապահովված է։",
+    q: "Ի՞նչ անել։",
+    o: ["Ներարկել ինսուլին", "Ներերակային գլյուկոզ (դեքստրոզ)", "Տալ քաղցր թեյ խմել", "Ներերակային ֆիզիոլոգիական լուծույթ միայն"],
+    c: 1,
+    why: "Ծանր հիպոգլիկեմիա՝ գիտակցության կորստով։ Անգիտակից մարդուն բերանով ոչինչ չի տրվում (ասպիրացիայի վտանգ)։ Ճիշտ է ներերակային գլյուկոզը (օր.՝ 40% գլյուկոզ կամ 10% դեքստրոզ), իսկ երակ չլինելու դեպքում՝ գլյուկագոն միջմկանային։ Հետո՝ գլյուկոզի կրկնակի չափում և հսկողություն։" },
+
+  { lvl: 2, title: "Հանկարծակի խոսքի խանգարում",
+    story: "67 տարեկան տղամարդ։ 1 ժամ առաջ հանկարծ թուլացել է աջ թևը, բերանի անկյունը ընկել է, խոսքը անհասկանալի է։ ԶՃ՝ 180/100, գլյուկոզ՝ նորմալ։",
+    q: "Ո՞րն է ճիշտ գործողությունը։",
+    o: ["Տալ ասպիրին և հետևել տանը", "Արագ իջեցնել ճնշումը ներերակային հակաճնշումային դեղով", "Շտապ տեղափոխել ինսուլտային կենտրոն՝ գլխի ԿՏ-ի համար, նշել ախտանշանների սկսվելու ժամը", "Սպասել 24 ժամ՝ կդադարի"],
+    c: 2,
+    why: "Սա սուր ինսուլտի կասկած է (FAST նշաններ)։ Ժամանակը կարևոր է՝ «ժամանակը՝ ուղեղ է»։ Անհրաժեշտ է շտապ ԿՏ՝ արյունազեղումը բացառելու համար, հետո հնարավոր է թրոմբոլիզիս։ Ասպիրին չեն տալիս մինչև արյունազեղման բացառումը, իսկ ճնշումը կտրուկ չեն իջեցնում։ Կարևոր է գիտենալ ախտանշանների սկսվելու ճշգրիտ ժամը։" },
+
+  { lvl: 2, title: "Վթարից հետո շնչահեղձություն",
+    story: "30 տարեկան տղամարդ, ավտովթար։ Ծանր շնչառական անբավարարություն, աջ կողմում շնչառությունը չի լսվում, շնչափողը շեղված է ձախ, պարանոցի երակները լայնացած, ԶՃ՝ 80/50, SpO₂՝ 82%։",
+    q: "Ի՞նչ է անհրաժեշտ անել անհապաղ։",
+    o: ["Կրծքավանդակի ռենտգեն և սպասել արդյունքին", "Աջ կողմում ասեղային դեկոմպրեսիա", "Միայն թթվածնային դիմակ", "Ներերակային դեղ ցավազրկման համար և դիտարկել"],
+    c: 1,
+    why: "Լարվածության պնևմոթորաքս է՝ կլինիկական ախտորոշում, պատկերային հետազոտություն չի սպասում։ Անհրաժեշտ է անհապաղ ասեղային դեկոմպրեսիա տուժած կողմում (կրծքավանդակի առաջային մակերեսով՝ միջկողային տարածությունում), հետո՝ կրծքավանդակային դրենաժ։ Ուշացումը մահացու է։" },
+
+  { lvl: 2, title: "Դանդաղ շնչառություն",
+    story: "32 տարեկան տղամարդ, հայտնաբերվել է դեղահաբերի կողքին։ Չի արձագանքում, շնչառության հաճախականությունը՝ 5/րոպե, աշակերտները՝ կետանման, ցիանոզ։",
+    q: "Ո՞ր միջամտությունն է առաջնային։",
+    o: ["Ֆլումազենիլ", "Նալոքսոն՝ շնչառության ապահովման հետ մեկտեղ", "Ատրոպին", "Գլյուկոզ"],
+    c: 1,
+    why: "Ախտանշանները՝ գիտակցության անկում, շնչառական ճնշում, կետանման աշակերտներ, օպիոիդային գերդոզավորում են։ Հակադոտը նալոքսոնն է։ Սակայն առաջին հերթին պետք է ապահովել շնչուղին և օդափոխությունը (պարկ-դիմակ, թթվածին)։ Ֆլումազենիլը բենզոդիազեպինների հակադոտն է և այստեղ սխալ է։" },
+
+  { lvl: 2, title: "Երկարատև նոպա",
+    story: "24 տարեկան կին, էպիլեպսիայի անամնեզով։ Տոնիկ-կլոնիկ նոպան տևում է արդեն 7 րոպե և չի կանգնում։",
+    q: "Ո՞ր դեղի խմբն է առաջին շարքում։",
+    o: ["Ֆենիտոին՝ առաջինը", "Բենզոդիազեպին (դիազեպամ ներերակային կամ միդազոլամ միջմկանային)", "Կաշկանդել և սպասել", "Ադրենալին"],
+    c: 1,
+    why: "5 րոպեից երկար նոպան համարվում է status epilepticus։ Առաջին շարքի դեղը բենզոդիազեպինն է (դիազեպամ ներերակային, երակ չլինելու դեպքում՝ միդազոլամ միջմկանային կամ քթային/բերանի լորձաթաղանթով)։ Եթե չի օգնում՝ երկրորդ շարքի դեղեր (լևետիրացետամ, վալպրոատ, ֆենիտոին)։ Պացիենտին չեն կաշկանդում, բերանում առարկա չեն դնում, ապահովում են շնչուղին և թթվածին։" },
+
+  { lvl: 3, title: "Ծանր ասթմայի նոպա",
+    story: "19 տարեկան երիտասարդ, ասթմայի անամնեզով։ Չի կարողանում ամբողջական նախադասություն ասել, շնչառություն՝ 32/րոպե, SpO₂՝ 88%, լսվում են սուլոցներ, օժանդակ մկանների ներգրավում։ Սովորական ինհալյատորը չի օգնում։",
+    q: "Ո՞րն է ճիշտ առաջին քայլերը։",
+    o: ["Միայն կոկորդի ցավի դեղեր", "Թթվածին + կարճ ազդեցության β₂-ագոնիստ (սալբուտամոլ) նեբուլայզերով, համակարգային կորտիկոստերոիդ", "Բենզոդիազեպիններ՝ հանգստացնելու համար", "Հակաբիոտիկ՝ առանց այլ բանի"],
+    c: 1,
+    why: "Ծանր/կյանքին սպառնացող ասթմայի նոպա է։ Նշանակվում են՝ թթվածին, սալբուտամոլ (հաճախ իպրատրոպիումի հետ) նեբուլայզերով, համակարգային կորտիկոստերոիդ։ Վատթարացման դեպքում՝ մագնեզիումի սուլֆատ ներերակային, ապա ինտենսիվ թերապիա։ Սեդատիվները վտանգավոր են՝ կարող են շնչառությունը ճնշել։" },
+
+  { lvl: 3, title: "Սրտային ասթմա",
+    story: "72 տարեկան կին, հիպերտոնիա։ Գիշերը արթնացել է շնչահեղձությունից, նստած է, փրփրոտ վարդագույն խորխ, թաց խռխռոցներ երկու թոքերում, ԶՃ՝ 190/110, SpO₂՝ 84%։",
+    q: "Ի՞նչ է հարմար անել։",
+    o: ["Պառկեցնել հարթ", "Նստեցնել ոտքերը կախված, թթվածին, ներերակային ֆուրոսեմիդ, նիտրատներ (եթե ԶՃ-ը թույլ է տալիս)", "Ներերակային մեծ ծավալով ֆիզիոլոգիական լուծույթ", "Բետա-բլոկատոր բարձր դոզայով"],
+    c: 1,
+    why: "Սուր թոքային այտուց է։ Դիրքը՝ նստած, ոտքերը կախված։ Թթվածին (հնարավոր է CPAP/NIV), ֆուրոսեմիդ ներերակային, նիտրատներ՝ նորմալ/բարձր ճնշման դեպքում։ Հեղուկի մեծ ծավալը վնասակար է, իսկ բետա-բլոկատորները սուր ձախ փորոքային անբավարարության ժամանակ վտանգավոր են։" },
+
+  { lvl: 3, title: "Սրտի կանգ",
+    story: "55 տարեկան տղամարդ փլվել է փողոցում։ Չի արձագանքում, չի շնչում նորմալ, պուլս չկա։ Շտապօգնության մոնիտորը ցույց է տալիս փորոքային ֆիբրիլյացիա։",
+    q: "Ո՞րն է առաջնային գործողությունը։",
+    o: ["Ադրենալին՝ առաջին քայլով, ապա սպասել", "Ինտուբացիա, հետո միայն սկսել CPR", "Կրծքավանդակի սեղմումներ (CPR) և հնարավորինս արագ դեֆիբրիլյացիա", "Ամիոդարոն՝ առաջինը, ապա դեֆիբրիլյացիա"],
+    c: 2,
+    why: "Շոկավորվող ռիթմ է (VF)։ Վերակենդանացման հիմքը՝ որակյալ կրծքավանդակային սեղմումներ (100–120/րոպե, խորություն ~5–6 սմ) և արագ դեֆիբրիլյացիա։ Ադրենալինը և ամիոդարոնը ավելացվում են հետո՝ կրկնվող շոկերից հետո։ Ինտուբացիան ուշացնել չի կարելի, CPR-ը չպետք է երկար ընդհատվի։" }
+];
+
+// ---- ՏՐԱՄԱԲԱՆՈՒԹՅՈՒՆ ----
+const $ = (id) => document.getElementById(id);
+const screens = ["home", "quiz", "result"];
+const show = (id) => screens.forEach(s => $(s).classList.toggle("active", s === id));
+const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const LEVELS = { 1: "🟢 Հեշտ", 2: "🟡 Միջին", 3: "🔴 Բարդ" };
+
+let order = [], idx = 0, score = 0, answered = false, wrongs = [];
+$("count").textContent = CASES.length;
+
+function start() {
+  order = CASES.slice().sort((a, b) => a.lvl - b.lvl);
+  idx = 0; score = 0; wrongs = [];
+  show("quiz");
+  render();
+}
+
+function render() {
+  answered = false;
+  const c = order[idx];
+  $("bar").style.width = (idx / order.length * 100) + "%";
+  $("num").textContent = "Քեյս " + (idx + 1) + " / " + order.length;
+  $("level").textContent = LEVELS[c.lvl];
+  $("title").textContent = c.title;
+  $("story").textContent = c.story;
+  $("question").textContent = c.q;
+  $("explain").classList.remove("show");
+  $("nextBtn").style.display = "none";
+
+  const opts = shuffle(c.o.map((t, i) => ({ t, ok: i === c.c })));
+  const box = $("options"); box.innerHTML = "";
+  opts.forEach(op => {
+    const b = document.createElement("button");
+    b.className = "opt"; b.textContent = op.t;
+    b.onclick = () => choose(b, op.ok, c);
+    box.appendChild(b);
+  });
+  window.scrollTo(0, 0);
+}
+
+function choose(btn, ok, c) {
+  if (answered) return;
+  answered = true;
+  const btns = [...document.querySelectorAll(".opt")];
+  btns.forEach(b => b.disabled = true);
+  const correctText = c.o[c.c];
+  btns.forEach(b => { if (b.textContent === correctText) b.classList.add("correct"); });
+  if (ok) { score++; haptic("success"); $("verdict").textContent = "✅ Ճիշտ է"; }
+  else { btn.classList.add("wrong"); wrongs.push(c); haptic("error"); $("verdict").textContent = "❌ Սխալ է"; }
+  $("why").textContent = c.why;
+  $("explain").classList.add("show");
+  $("nextBtn").style.display = "block";
+  $("nextBtn").textContent = idx === order.length - 1 ? "Տեսնել արդյունքը" : "Հաջորդը";
+  $("nextBtn").scrollIntoView({ behavior: "smooth", block: "end" });
+}
+
+function next() {
+  idx++;
+  if (idx >= order.length) return finish();
+  render();
+}
+
+function finish() {
+  show("result");
+  $("bar").style.width = "100%";
+  const pct = Math.round(score / order.length * 100);
+  $("score").textContent = score + " / " + order.length;
+  $("rEmoji").textContent = pct >= 80 ? "🏆" : pct >= 50 ? "👍" : "📚";
+  $("rMsg").textContent = pct >= 80 ? "Գերազանց արդյունք։" : pct >= 50 ? "Լավ է, բայց կան բացեր։" : "Արժե կրկնել նյութը։";
+  const rv = $("review");
+  rv.innerHTML = wrongs.length ? "<b>Կրկնելու թեմաներ՝</b>" : "<b>Բոլոր պատասխանները ճիշտ են 🎉</b>";
+  wrongs.forEach(w => { const d = document.createElement("div"); d.className = "review-item"; d.textContent = "• " + w.title; rv.appendChild(d); });
+}
+
+$("startBtn").onclick = start;
+$("nextBtn").onclick = next;
+$("againBtn").onclick = start;
+$("closeBtn").onclick = () => { if (tg) tg.close(); else show("home"); };
+</script>
+</body>
+</html>
