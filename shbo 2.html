@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Շտապ օգնություն</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: #0d0f16;
+    --bg2: #151826;
+    --card: #1a1e2e;
+    --card2: #222740;
+    --text: #f4f5fa;
+    --hint: #8d93ab;
+    --accent: #ff4d5a;
+    --accent2: #ff7a59;
+    --ok: #2fd18b;
+    --bad: #ff4d5a;
+    --line: rgba(255,255,255,.07);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body {
+    background: radial-gradient(1200px 500px at 50% -150px, rgba(255,77,90,.18), transparent 60%), var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "SF Pro Text", "Segoe UI", Roboto, "Noto Sans Armenian", sans-serif;
+    line-height: 1.45; min-height: 100vh;
+    padding: 14px 16px calc(36px + env(safe-area-inset-bottom));
+  }
+  .screen { display: none; max-width: 560px; margin: 0 auto; animation: fade .3s ease; }
+  .screen.active { display: block; }
+  @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  /* Գլխավոր */
+  .hello { display: flex; align-items: center; gap: 12px; margin: 6px 0 16px; }
+  .avatar {
+    width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font-size: 24px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2)); box-shadow: 0 6px 18px rgba(255,77,90,.35);
+  }
+  .hello h2 { margin: 0; font-size: 20px; }
+  .hello p { margin: 0; color: var(--hint); font-size: 13px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 12px 8px; text-align: center; }
+  .stat b { display: block; font-size: 20px; }
+  .stat span { font-size: 12px; color: var(--hint); }
+  .xpbar { height: 6px; background: var(--card); border-radius: 3px; overflow: hidden; margin: -6px 0 18px; }
+  .xpbar > div { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 3px; transition: width .6s; }
+  h3 { font-size: 15px; margin: 18px 2px 10px; color: var(--hint); font-weight: 600; letter-spacing: .3px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .topic {
+    background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 16px 12px 14px;
+    text-align: center; cursor: pointer; transition: transform .12s, background .2s; color: var(--text); font: inherit;
+  }
+  .topic:active { transform: scale(.96); background: var(--card2); }
+  .ring {
+    --p: 0; --c: var(--accent);
+    width: 68px; height: 68px; margin: 0 auto 10px; border-radius: 50%; display: grid; place-items: center;
+    background: conic-gradient(var(--c) calc(var(--p) * 1%), rgba(255,255,255,.09) 0);
+    position: relative;
+  }
+  .ring::before { content: ""; position: absolute; inset: 6px; border-radius: 50%; background: var(--card); }
+  .ring span { position: relative; font-size: 28px; }
+  .topic b { display: block; font-size: 15px; }
+  .topic small { color: var(--hint); font-size: 12px; }
+  .btn {
+    display: block; width: 100%; border: 0; border-radius: 16px; padding: 16px; font: inherit; font-size: 16px; font-weight: 700;
+    color: #fff; background: linear-gradient(135deg, var(--accent), var(--accent2));
+    box-shadow: 0 8px 22px rgba(255,77,90,.32); cursor: pointer; margin-top: 12px; transition: transform .12s;
+  }
+  .btn:active { transform: scale(.98); }
+  .btn.ghost { background: var(--card); box-shadow: none; border: 1px solid var(--line); color: var(--text); }
+  .disclaimer { color: var(--hint); font-size: 11.5px; text-align: center; margin-top: 22px; }
+
+  /* Քվիզ */
+  .top { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .x { width: 38px; height: 38px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--text); font-size: 18px; cursor: pointer; }
+  .progress { flex: 1; height: 8px; background: var(--card); border-radius: 4px; overflow: hidden; }
+  .progress > div { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .35s; border-radius: 4px; }
+  .cnt { font-size: 13px; color: var(--hint); min-width: 44px; text-align: right; }
+  .tags { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .tag { font-size: 12px; padding: 4px 11px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); color: var(--hint); }
+  .case {
+    background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 18px; margin-bottom: 14px;
+  }
+  .case h2 { margin: 0 0 8px; font-size: 20px; }
+  .case .story { color: #dfe2ef; font-size: 15.5px; }
+  .case .q { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line); font-weight: 700; }
+  .opt {
+    display: flex; gap: 12px; align-items: flex-start; width: 100%; text-align: left; font: inherit; font-size: 15px;
+    background: var(--card); color: var(--text); border: 2px solid var(--line); border-radius: 16px; padding: 13px 14px;
+    margin-bottom: 10px; cursor: pointer; transition: transform .1s, border-color .2s, background .2s;
+  }
+  .opt:active:not(:disabled) { transform: scale(.985); }
+  .opt .l {
+    flex: none; width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center;
+    background: var(--card2); font-weight: 700; font-size: 13px; color: var(--hint);
+  }
+  .opt.correct { border-color: var(--ok); background: rgba(47,209,139,.13); }
+  .opt.correct .l { background: var(--ok); color: #05150e; }
+  .opt.wrong { border-color: var(--bad); background: rgba(255,77,90,.13); animation: shake .35s; }
+  .opt.wrong .l { background: var(--bad); color: #fff; }
+  .opt:disabled { cursor: default; opacity: 1; }
+  .opt.dim { opacity: .5; }
+  @keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+  .explain { display: none; background: var(--bg2); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 16px; padding: 14px 16px; margin: 4px 0 10px; font-size: 14.5px; }
+  .explain.show { display: block; animation: fade .3s; }
+  .explain b { display: block; font-size: 16px; margin-bottom: 6px; }
+
+  /* Արդյունք */
+  .center { text-align: center; }
+  .bigring { --p: 0; --c: var(--ok); width: 170px; height: 170px; margin: 18px auto; border-radius: 50%; display: grid; place-items: center; position: relative;
+    background: conic-gradient(var(--c) calc(var(--p) * 1%), rgba(255,255,255,.09) 0); transition: --p 1s; }
+  .bigring::before { content: ""; position: absolute; inset: 12px; border-radius: 50%; background: var(--bg); }
+  .bigring div { position: relative; font-size: 40px; font-weight: 800; }
+  .bigring small { display: block; font-size: 13px; color: var(--hint); font-weight: 500; }
+  .xp { display: inline-block; padding: 8px 16px; border-radius: 999px; background: rgba(255,200,60,.14); color: #ffd25e; font-weight: 700; margin: 4px 0 14px; }
+  .review { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; text-align: left; margin-top: 6px; }
+  .review div { padding: 6px 0; font-size: 14px; }
+  .confetti { position: fixed; top: -30px; font-size: 22px; pointer-events: none; animation: fall linear forwards; z-index: 10; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: .8; } }
+</style>
+</head>
+<body>
+
+<!-- ԳԼԽԱՎՈՐ -->
+<div id="home" class="screen active">
+  <div class="hello">
+    <div class="avatar">🚑</div>
+    <div>
+      <h2 id="name">Բարև</h2>
+      <p id="lvl">Մակարդակ 1</p>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="stat"><b id="sStreak">0</b><span>🔥 Շարք</span></div>
+    <div class="stat"><b id="sXp">0</b><span>⭐ Միավոր</span></div>
+    <div class="stat"><b id="sDone">0/0</b><span>✅ Յուրացված</span></div>
+  </div>
+  <div class="xpbar"><div id="xpFill"></div></div>
+
+  <button class="btn" id="mixBtn">🎲 Խառը քվիզ</button>
+  <button class="btn ghost" id="weakBtn" style="display:none">🔁 Չյուրացրած քեյսերը</button>
+
+  <h3>ԹԵՄԱՆԵՐ</h3>
+  <div class="grid" id="topics"></div>
+
+  <p class="disclaimer">Միայն ուսումնական նպատակով։ Չի փոխարինում պրոտոկոլներին և բժշկի որոշմանը։</p>
+</div>
+
+<!-- ՔՎԻԶ -->
+<div id="quiz" class="screen">
+  <div class="top">
+    <button class="x" id="exitBtn">✕</button>
+    <div class="progress"><div id="bar"></div></div>
+    <div class="cnt" id="num"></div>
+  </div>
+  <div class="tags"><span class="tag" id="tTopic"></span><span class="tag" id="tLevel"></span></div>
+  <div class="case">
+    <h2 id="title"></h2>
+    <div class="story" id="story"></div>
+    <div class="q" id="question"></div>
+  </div>
+  <div id="options"></div>
+  <div class="explain" id="explain"><b id="verdict"></b><span id="why"></span></div>
+  <button class="btn" id="nextBtn" style="display:none">Հաջորդը</button>
+</div>
+
+<!-- ԱՐԴՅՈՒՆՔ -->
+<div id="result" class="screen center">
+  <div class="bigring" id="rRing"><div><span id="score"></span><small id="pct"></small></div></div>
+  <h2 id="rMsg" style="margin:0 0 6px"></h2>
+  <div class="xp" id="xpGain"></div>
+  <div class="review" id="review"></div>
+  <button class="btn" id="retryWrong" style="display:none">🔁 Սխալների վրա աշխատանք</button>
+  <button class="btn ghost" id="homeBtn">🏠 Գլխավոր</button>
+</div>
+
+<script>
+const tg = window.Telegram && Telegram.WebApp;
+if (tg) {
+  tg.ready(); tg.expand();
+  try { tg.setHeaderColor("#0d0f16"); tg.setBackgroundColor("#0d0f16"); } catch (e) {}
+}
+const vibe = (t) => { try { tg.HapticFeedback.notificationOccurred(t); } catch (e) {} };
+const tap = () => { try { tg.HapticFeedback.selectionChanged(); } catch (e) {} };
+
+// ---- ՔԵՅՍԵՐ ----
+// c = ճիշտ տարբերակի ինդեքս (0-ից)
+const CASES = [
+  { lvl: 1, title: "Կրծքավանդակի ցավ",
+    story: "58 տարեկան տղամարդ, 40 րոպե է՝ սեղմող ցավ կրծքի հետևում, տարածվում է ձախ թևի և ծնոտի վրա։ Սառը քրտինք, սրտխառնոց։ ԷկԳ-ում՝ ST-ի բարձրացում II, III, aVF կապերում։",
+    q: "Ո՞րն է ամենահավանական ախտորոշումը։",
+    o: ["Սուր պերիկարդիտ", "Սրտամկանի սուր վարակտ (ստորին պատի STEMI)", "Թոքային զարկերակի թրոմբէմբոլիա", "Գաստրոէզոֆագեալ ռեֆլյուքս"],
+    c: 1,
+    why: "ST-ի բարձրացումը II, III, aVF կապերում ցույց է տալիս սրտի ստորին պատի վնասում։ Կարիք է ռեպերֆուզիայի՝ շտապ տեղափոխում PCI-ի հնարավորություն ունեցող կենտրոն, ասպիրին, ցավի վերահսկում։ Ստորին վարակտի դեպքում նիտրատներից զգուշացեք՝ աջ փորոքի ներգրավման և հիպոտենզիայի վտանգ կա։" },
+
+  { lvl: 1, title: "Մեղվի խայթոց",
+    story: "27 տարեկան կին՝ իշամեղվի խայթոցից 10 րոպե անց։ Ամբողջ մարմնով ուրտիկարիա, շնչահեղձություն, սուլոցային շնչառություն, դեմքի այտուց։ ԶՃ՝ 70/40, պուլս՝ 130։",
+    q: "Ո՞ր դեղը պետք է առաջինը տալ։",
+    o: ["Դեքսամետազոն ներերակային", "Հակահիստամինային դեղ (դիֆենհիդրամին)", "Ադրենալին (էպինեֆրին) միջմկանային", "Սալբուտամոլ ինհալյացիա"],
+    c: 2,
+    why: "Սա անաֆիլակտիկ շոկ է։ Առաջին և հիմնական դեղը ադրենալինն է՝ միջմկանային, ազդրի առաջանցք-կողմնային մակերեսին (մեծահասակին սովորաբար 0,3–0,5 մգ), անհրաժեշտության դեպքում կրկնել 5–15 րոպեն մեկ։ Հակահիստամինները և կորտիկոստերոիդները օժանդակ են և չեն փրկում կյանքը։ Հետո՝ պառկեցնել, ոտքերը բարձր, թթվածին, հեղուկ։" },
+
+  { lvl: 1, title: "Անգիտակից դիաբետիկ",
+    story: "45 տարեկան տղամարդ, շաքարային դիաբետ 1-ին տիպ։ Հայտնաբերվել է անգիտակից, մաշկը խոնավ ու սառը։ Գլյուկոմետրով՝ 1,8 մմոլ/լ։ Երակային մուտքն ապահովված է։",
+    q: "Ի՞նչ անել։",
+    o: ["Ներարկել ինսուլին", "Ներերակային գլյուկոզ (դեքստրոզ)", "Տալ քաղցր թեյ խմել", "Ներերակային ֆիզիոլոգիական լուծույթ միայն"],
+    c: 1,
+    why: "Ծանր հիպոգլիկեմիա՝ գիտակցության կորստով։ Անգիտակից մարդուն բերանով ոչինչ չի տրվում (ասպիրացիայի վտանգ)։ Ճիշտ է ներերակային գլյուկոզը (օր.՝ 40% գլյուկոզ կամ 10% դեքստրոզ), իսկ երակ չլինելու դեպքում՝ գլյուկագոն միջմկանային։ Հետո՝ գլյուկոզի կրկնակի չափում և հսկողություն։" },
+
+  { lvl: 2, title: "Հանկարծակի խոսքի խանգարում",
+    story: "67 տարեկան տղամարդ։ 1 ժամ առաջ հանկարծ թուլացել է աջ թևը, բերանի անկյունը ընկել է, խոսքը անհասկանալի է։ ԶՃ՝ 180/100, գլյուկոզ՝ նորմալ։",
+    q: "Ո՞րն է ճիշտ գործողությունը։",
+    o: ["Տալ ասպիրին և հետևել տանը", "Արագ իջեցնել ճնշումը ներերակային հակաճնշումային դեղով", "Շտապ տեղափոխել ինսուլտային կենտրոն՝ գլխի ԿՏ-ի համար, նշել ախտանշանների սկսվելու ժամը", "Սպասել 24 ժամ՝ կդադարի"],
+    c: 2,
+    why: "Սա սուր ինսուլտի կասկած է (FAST նշաններ)։ Ժամանակը կարևոր է՝ «ժամանակը՝ ուղեղ է»։ Անհրաժեշտ է շտապ ԿՏ՝ արյունազեղումը բացառելու համար, հետո հնարավոր է թրոմբոլիզիս։ Ասպիրին չեն տալիս մինչև արյունազեղման բացառումը, իսկ ճնշումը կտրուկ չեն իջեցնում։ Կարևոր է գիտենալ ախտանշանների սկսվելու ճշգրիտ ժամը։" },
+
+  { lvl: 2, title: "Վթարից հետո շնչահեղձություն",
+    story: "30 տարեկան տղամարդ, ավտովթար։ Ծանր շնչառական անբավարարություն, աջ կողմում շնչառությունը չի լսվում, շնչափողը շեղված է ձախ, պարանոցի երակները լայնացած, ԶՃ՝ 80/50, SpO₂՝ 82%։",
+    q: "Ի՞նչ է անհրաժեշտ անել անհապաղ։",
+    o: ["Կրծքավանդակի ռենտգեն և սպասել արդյունքին", "Աջ կողմում ասեղային դեկոմպրեսիա", "Միայն թթվածնային դիմակ", "Ներերակային դեղ ցավազրկման համար և դիտարկել"],
+    c: 1,
+    why: "Լարվածության պնևմոթորաքս է՝ կլինիկական ախտորոշում, պատկերային հետազոտություն չի սպասում։ Անհրաժեշտ է անհապաղ ասեղային դեկոմպրեսիա տուժած կողմում (կրծքավանդակի առաջային մակերեսով՝ միջկողային տարածությունում), հետո՝ կրծքավանդակային դրենաժ։ Ուշացումը մահացու է։" },
+
+  { lvl: 2, title: "Դանդաղ շնչառություն",
+    story: "32 տարեկան տղամարդ, հայտնաբերվել է դեղահաբերի կողքին։ Չի արձագանքում, շնչառության հաճախականությունը՝ 5/րոպե, աշակերտները՝ կետանման, ցիանոզ։",
+    q: "Ո՞ր միջամտությունն է առաջնային։",
+    o: ["Ֆլումազենիլ", "Նալոքսոն՝ շնչառության ապահովման հետ մեկտեղ", "Ատրոպին", "Գլյուկոզ"],
+    c: 1,
+    why: "Ախտանշանները՝ գիտակցության անկում, շնչառական ճնշում, կետանման աշակերտներ, օպիոիդային գերդոզավորում են։ Հակադոտը նալոքսոնն է։ Սակայն առաջին հերթին պետք է ապահովել շնչուղին և օդափոխությունը (պարկ-դիմակ, թթվածին)։ Ֆլումազենիլը բենզոդիազեպինների հակադոտն է և այստեղ սխալ է։" },
+
+  { lvl: 2, title: "Երկարատև նոպա",
+    story: "24 տարեկան կին, էպիլեպսիայի անամնեզով։ Տոնիկ-կլոնիկ նոպան տևում է արդեն 7 րոպե և չի կանգնում։",
+    q: "Ո՞ր դեղի խմբն է առաջին շարքում։",
+    o: ["Ֆենիտոին՝ առաջինը", "Բենզոդիազեպին (դիազեպամ ներերակային կամ միդազոլամ միջմկանային)", "Կաշկանդել և սպասել", "Ադրենալին"],
+    c: 1,
+    why: "5 րոպեից երկար նոպան համարվում է status epilepticus։ Առաջին շարքի դեղը բենզոդիազեպինն է (դիազեպամ ներերակային, երակ չլինելու դեպքում՝ միդազոլամ միջմկանային կամ քթային/բերանի լորձաթաղանթով)։ Եթե չի օգնում՝ երկրորդ շարքի դեղեր (լևետիրացետամ, վալպրոատ, ֆենիտոին)։ Պացիենտին չեն կաշկանդում, բերանում առարկա չեն դնում, ապահովում են շնչուղին և թթվածին։" },
+
+  { lvl: 3, title: "Ծանր ասթմայի նոպա",
+    story: "19 տարեկան երիտասարդ, ասթմայի անամնեզով։ Չի կարողանում ամբողջական նախադասություն ասել, շնչառություն՝ 32/րոպե, SpO₂՝ 88%, լսվում են սուլոցներ, օժանդակ մկանների ներգրավում։ Սովորական ինհալյատորը չի օգնում։",
+    q: "Ո՞րն է ճիշտ առաջին քայլերը։",
+    o: ["Միայն կոկորդի ցավի դեղեր", "Թթվածին + կարճ ազդեցության β₂-ագոնիստ (սալբուտամոլ) նեբուլայզերով, համակարգային կորտիկոստերոիդ", "Բենզոդիազեպիններ՝ հանգստացնելու համար", "Հակաբիոտիկ՝ առանց այլ բանի"],
+    c: 1,
+    why: "Ծանր/կյանքին սպառնացող ասթմայի նոպա է։ Նշանակվում են՝ թթվածին, սալբուտամոլ (հաճախ իպրատրոպիումի հետ) նեբուլայզերով, համակարգային կորտիկոստերոիդ։ Վատթարացման դեպքում՝ մագնեզիումի սուլֆատ ներերակային, ապա ինտենսիվ թերապիա։ Սեդատիվները վտանգավոր են՝ կարող են շնչառությունը ճնշել։" },
+
+  { lvl: 3, title: "Սրտային ասթմա",
+    story: "72 տարեկան կին, հիպերտոնիա։ Գիշերը արթնացել է շնչահեղձությունից, նստած է, փրփրոտ վարդագույն խորխ, թաց խռխռոցներ երկու թոքերում, ԶՃ՝ 190/110, SpO₂՝ 84%։",
+    q: "Ի՞նչ է հարմար անել։",
+    o: ["Պառկեցնել հարթ", "Նստեցնել ոտքերը կախված, թթվածին, ներերակային ֆուրոսեմիդ, նիտրատներ (եթե ԶՃ-ը թույլ է տալիս)", "Ներերակային մեծ ծավալով ֆիզիոլոգիական լուծույթ", "Բետա-բլոկատոր բարձր դոզայով"],
+    c: 1,
+    why: "Սուր թոքային այտուց է։ Դիրքը՝ նստած, ոտքերը կախված։ Թթվածին (հնարավոր է CPAP/NIV), ֆուրոսեմիդ ներերակային, նիտրատներ՝ նորմալ/բարձր ճնշման դեպքում։ Հեղուկի մեծ ծավալը վնասակար է, իսկ բետա-բլոկատորները սուր ձախ փորոքային անբավարարության ժամանակ վտանգավոր են։" },
+
+  { lvl: 3, title: "Սրտի կանգ",
+    story: "55 տարեկան տղամարդ փլվել է փողոցում։ Չի արձագանքում, չի շնչում նորմալ, պուլս չկա։ Շտապօգնության մոնիտորը ցույց է տալիս փորոքային ֆիբրիլյացիա։",
+    q: "Ո՞րն է առաջնային գործողությունը։",
+    o: ["Ադրենալին՝ առաջին քայլով, ապա սպասել", "Ինտուբացիա, հետո միայն սկսել CPR", "Կրծքավանդակի սեղմումներ (CPR) և հնարավորինս արագ դեֆիբրիլյացիա", "Ամիոդարոն՝ առաջինը, ապա դեֆիբրիլյացիա"],
+    c: 2,
+    why: "Շոկավորվող ռիթմ է (VF)։ Վերակենդանացման հիմքը՝ որակյալ կրծքավանդակային սեղմումներ (100–120/րոպե, խորություն ~5–6 սմ) և արագ դեֆիբրիլյացիա։ Ադրենալինը և ամիոդարոնը ավելացվում են հետո՝ կրկնվող շոկերից հետո։ Ինտուբացիան ուշացնել չի կարելի, CPR-ը չպետք է երկար ընդհատվի։" }
+];
+
+const TOPICS = [
+  { id: "heart", n: "Սիրտ", e: "❤️", c: "#ff5a5f" },
+  { id: "brain", n: "Ուղեղ", e: "🧠", c: "#a78bfa" },
+  { id: "lungs", n: "Շնչառություն", e: "🫁", c: "#38bdf8" },
+  { id: "other", n: "Այլ իրավիճակներ", e: "⚡", c: "#fbbf24" }
+];
+const TOPIC_OF = {
+  "Կրծքավանդակի ցավ": "heart", "Սրտային ասթմա": "heart", "Սրտի կանգ": "heart",
+  "Հանկարծակի խոսքի խանգարում": "brain", "Երկարատև նոպա": "brain",
+  "Վթարից հետո շնչահեղձություն": "lungs", "Ծանր ասթմայի նոպա": "lungs",
+  "Մեղվի խայթոց": "other", "Անգիտակից դիաբետիկ": "other", "Դանդաղ շնչառություն": "other"
+};
+CASES.forEach(c => { c.topic = TOPIC_OF[c.title] || "other"; });
+const LEVELS = { 1: "🟢 Հեշտ", 2: "🟡 Միջին", 3: "🔴 Բարդ" };
+const LETTERS = ["Ա", "Բ", "Գ", "Դ", "Ե"];
+
+// ---- ՊԱՀՊԱՆՈՒՄ ----
+const KEY = "ems_quiz_v1";
+function load() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } }
+let S = Object.assign({ xp: 0, streak: 0, last: "", done: {} }, load());
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+const dayStr = (d) => d.toISOString().slice(0, 10);
+function touchStreak() {
+  const today = dayStr(new Date());
+  if (S.last === today) return;
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  S.streak = S.last === dayStr(y) ? S.streak + 1 : 1;
+  S.last = today;
+}
+
+// ---- ՕԺԱՆԴԱԿ ----
+const $ = (id) => document.getElementById(id);
+const screens = ["home", "quiz", "result"];
+function show(id) {
+  screens.forEach(s => $(s).classList.toggle("active", s === id));
+  window.scrollTo(0, 0);
+  try { id === "quiz" ? tg.BackButton.show() : tg.BackButton.hide(); } catch (e) {}
+}
+const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+// ---- ԳԼԽԱՎՈՐ ----
+function renderHome() {
+  const u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+  $("name").textContent = u && u.first_name ? "Բարև, " + u.first_name + " 👋" : "Բարև 👋";
+  const lvl = Math.floor(S.xp / 50) + 1;
+  $("lvl").textContent = "Մակարդակ " + lvl;
+  $("sStreak").textContent = S.streak;
+  $("sXp").textContent = S.xp;
+  const done = CASES.filter(c => S.done[c.title]).length;
+  $("sDone").textContent = done + "/" + CASES.length;
+  $("xpFill").style.width = ((S.xp % 50) / 50 * 100) + "%";
+  $("weakBtn").style.display = done > 0 && done < CASES.length ? "block" : "none";
+
+  const box = $("topics"); box.innerHTML = "";
+  TOPICS.forEach(t => {
+    const list = CASES.filter(c => c.topic === t.id);
+    if (!list.length) return;
+    const d = list.filter(c => S.done[c.title]).length;
+    const b = document.createElement("button");
+    b.className = "topic";
+    b.innerHTML = '<div class="ring" style="--p:' + Math.round(d / list.length * 100) + ';--c:' + t.c + '"><span>' + t.e + '</span></div>' +
+      '<b>' + t.n + '</b><small>' + d + ' / ' + list.length + ' քեյս</small>';
+    b.onclick = () => { tap(); start(list, t.n); };
+    box.appendChild(b);
+  });
+}
+
+// ---- ՔՎԻԶ ----
+let order = [], idx = 0, score = 0, answered = false, wrongs = [], sessionXp = 0, label = "";
+
+function start(list, name) {
+  order = shuffle(list).sort((a, b) => a.lvl - b.lvl);
+  idx = 0; score = 0; wrongs = []; sessionXp = 0; label = name || "";
+  show("quiz"); render();
+}
+
+function render() {
+  answered = false;
+  const c = order[idx];
+  const t = TOPICS.find(x => x.id === c.topic);
+  $("bar").style.width = (idx / order.length * 100) + "%";
+  $("num").textContent = (idx + 1) + "/" + order.length;
+  $("tTopic").textContent = t ? t.e + " " + t.n : "";
+  $("tLevel").textContent = LEVELS[c.lvl];
+  $("title").textContent = c.title;
+  $("story").textContent = c.story;
+  $("question").textContent = c.q;
+  $("explain").classList.remove("show");
+  $("nextBtn").style.display = "none";
+
+  const opts = shuffle(c.o.map((txt, i) => ({ txt, ok: i === c.c })));
+  const box = $("options"); box.innerHTML = "";
+  opts.forEach((op, i) => {
+    const b = document.createElement("button");
+    b.className = "opt"; b.dataset.ok = op.ok ? "1" : "0";
+    b.innerHTML = '<span class="l">' + LETTERS[i] + '</span><span></span>';
+    b.lastChild.textContent = op.txt;
+    b.onclick = () => choose(b, op.ok, c);
+    box.appendChild(b);
+  });
+  window.scrollTo(0, 0);
+}
+
+function choose(btn, ok, c) {
+  if (answered) return;
+  answered = true;
+  const btns = [...document.querySelectorAll(".opt")];
+  btns.forEach(b => { b.disabled = true; if (b.dataset.ok === "1") b.classList.add("correct"); else if (b !== btn) b.classList.add("dim"); });
+  if (ok) {
+    score++; sessionXp += 10; S.done[c.title] = true; vibe("success");
+    $("verdict").textContent = "✅ Ճիշտ է, +10 ⭐";
+  } else {
+    btn.classList.add("wrong"); wrongs.push(c); vibe("error");
+    $("verdict").textContent = "❌ Սխալ է";
+  }
+  $("why").textContent = c.why;
+  $("explain").classList.add("show");
+  const nb = $("nextBtn");
+  nb.style.display = "block";
+  nb.textContent = idx === order.length - 1 ? "Տեսնել արդյունքը" : "Հաջորդը";
+  setTimeout(() => nb.scrollIntoView({ behavior: "smooth", block: "end" }), 80);
+}
+
+function next() {
+  idx++;
+  idx >= order.length ? finish() : render();
+}
+
+function finish() {
+  touchStreak();
+  S.xp += sessionXp; save();
+  show("result");
+  const pct = Math.round(score / order.length * 100);
+  $("score").textContent = score + "/" + order.length;
+  $("pct").textContent = pct + "%";
+  const ring = $("rRing");
+  ring.style.setProperty("--c", pct >= 80 ? "#2fd18b" : pct >= 50 ? "#ffc23c" : "#ff4d5a");
+  requestAnimationFrame(() => ring.style.setProperty("--p", pct));
+  $("rMsg").textContent = pct === 100 ? "Կատարյալ է 🏆" : pct >= 80 ? "Գերազանց 👏" : pct >= 50 ? "Լավ է, շարունակիր 👍" : "Արժե կրկնել 📚";
+  $("xpGain").textContent = "+" + sessionXp + " ⭐ · 🔥 " + S.streak + " օր";
+  const rv = $("review");
+  rv.innerHTML = wrongs.length ? "<b>Կրկնելու թեմաներ՝</b>" : "<b>Բոլոր պատասխանները ճիշտ են 🎉</b>";
+  wrongs.forEach(w => { const d = document.createElement("div"); d.textContent = "• " + w.title; rv.appendChild(d); });
+  $("retryWrong").style.display = wrongs.length ? "block" : "none";
+  if (pct >= 80) confetti();
+}
+
+function confetti() {
+  const em = ["🎉", "⭐", "✨", "💥", "🏆"];
+  for (let i = 0; i < 36; i++) {
+    const s = document.createElement("span");
+    s.className = "confetti"; s.textContent = em[i % em.length];
+    s.style.left = Math.random() * 100 + "vw";
+    s.style.animationDuration = (2 + Math.random() * 2.2) + "s";
+    s.style.animationDelay = (Math.random() * .6) + "s";
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 5200);
+  }
+}
+
+function goHome() { renderHome(); show("home"); }
+
+$("mixBtn").onclick = () => { tap(); start(CASES, "Խառը"); };
+$("weakBtn").onclick = () => { tap(); start(CASES.filter(c => !S.done[c.title]), "Չյուրացրած"); };
+$("nextBtn").onclick = next;
+$("exitBtn").onclick = goHome;
+$("homeBtn").onclick = goHome;
+$("retryWrong").onclick = () => start(wrongs.slice(), "Սխալներ");
+try { tg.BackButton.onClick(goHome); } catch (e) {}
+
+renderHome();
+</script>
+</body>
+</html>
