@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Շտապ օգնություն</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: #0d0f16;
+    --bg2: #151826;
+    --card: #1a1e2e;
+    --card2: #222740;
+    --text: #f4f5fa;
+    --hint: #8d93ab;
+    --accent: #ff4d5a;
+    --accent2: #ff7a59;
+    --ok: #2fd18b;
+    --bad: #ff4d5a;
+    --line: rgba(255,255,255,.07);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body {
+    background: radial-gradient(1200px 500px at 50% -150px, rgba(255,77,90,.18), transparent 60%), var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "SF Pro Text", "Segoe UI", Roboto, "Noto Sans Armenian", sans-serif;
+    line-height: 1.45; min-height: 100vh;
+    padding: 14px 16px calc(36px + env(safe-area-inset-bottom));
+  }
+  .screen { display: none; max-width: 560px; margin: 0 auto; animation: fade .3s ease; }
+  .screen.active { display: block; }
+  @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  /* Գլխավոր */
+  .hello { display: flex; align-items: center; gap: 12px; margin: 6px 0 16px; }
+  .avatar {
+    width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font-size: 24px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2)); box-shadow: 0 6px 18px rgba(255,77,90,.35);
+  }
+  .hello h2 { margin: 0; font-size: 20px; }
+  .hello p { margin: 0; color: var(--hint); font-size: 13px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 12px 8px; text-align: center; }
+  .stat b { display: block; font-size: 20px; }
+  .stat span { font-size: 12px; color: var(--hint); }
+  .xpbar { height: 6px; background: var(--card); border-radius: 3px; overflow: hidden; margin: -6px 0 18px; }
+  .xpbar > div { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 3px; transition: width .6s; }
+  h3 { font-size: 15px; margin: 18px 2px 10px; color: var(--hint); font-weight: 600; letter-spacing: .3px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .topic {
+    background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 16px 12px 14px;
+    text-align: center; cursor: pointer; transition: transform .12s, background .2s; color: var(--text); font: inherit;
+  }
+  .topic:active { transform: scale(.96); background: var(--card2); }
+  .ring {
+    --p: 0; --c: var(--accent);
+    width: 68px; height: 68px; margin: 0 auto 10px; border-radius: 50%; display: grid; place-items: center;
+    background: conic-gradient(var(--c) calc(var(--p) * 1%), rgba(255,255,255,.09) 0);
+    position: relative;
+  }
+  .ring::before { content: ""; position: absolute; inset: 6px; border-radius: 50%; background: var(--card); }
+  .ring span { position: relative; font-size: 28px; }
+  .topic b { display: block; font-size: 15px; }
+  .topic small { color: var(--hint); font-size: 12px; }
+  .btn {
+    display: block; width: 100%; border: 0; border-radius: 16px; padding: 16px; font: inherit; font-size: 16px; font-weight: 700;
+    color: #fff; background: linear-gradient(135deg, var(--accent), var(--accent2));
+    box-shadow: 0 8px 22px rgba(255,77,90,.32); cursor: pointer; margin-top: 12px; transition: transform .12s;
+  }
+  .btn:active { transform: scale(.98); }
+  .btn.ghost { background: var(--card); box-shadow: none; border: 1px solid var(--line); color: var(--text); }
+  .disclaimer { color: var(--hint); font-size: 11.5px; text-align: center; margin-top: 22px; }
+
+  /* Քվիզ */
+  .top { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .x { width: 38px; height: 38px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--text); font-size: 18px; cursor: pointer; }
+  .progress { flex: 1; height: 8px; background: var(--card); border-radius: 4px; overflow: hidden; }
+  .progress > div { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width .35s; border-radius: 4px; }
+  .cnt { font-size: 13px; color: var(--hint); min-width: 44px; text-align: right; }
+  .tags { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .tag { font-size: 12px; padding: 4px 11px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); color: var(--hint); }
+  .case {
+    background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 18px; margin-bottom: 14px;
+  }
+  .case h2 { margin: 0 0 8px; font-size: 20px; }
+  .case .story { color: #dfe2ef; font-size: 15.5px; }
+  .case .q { margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--line); font-weight: 700; }
+  .opt {
+    display: flex; gap: 12px; align-items: flex-start; width: 100%; text-align: left; font: inherit; font-size: 15px;
+    background: var(--card); color: var(--text); border: 2px solid var(--line); border-radius: 16px; padding: 13px 14px;
+    margin-bottom: 10px; cursor: pointer; transition: transform .1s, border-color .2s, background .2s;
+  }
+  .opt:active:not(:disabled) { transform: scale(.985); }
+  .opt .l {
+    flex: none; width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center;
+    background: var(--card2); font-weight: 700; font-size: 13px; color: var(--hint);
+  }
+  .opt.correct { border-color: var(--ok); background: rgba(47,209,139,.13); }
+  .opt.correct .l { background: var(--ok); color: #05150e; }
+  .opt.wrong { border-color: var(--bad); background: rgba(255,77,90,.13); animation: shake .35s; }
+  .opt.wrong .l { background: var(--bad); color: #fff; }
+  .opt:disabled { cursor: default; opacity: 1; }
+  .opt.dim { opacity: .5; }
+  @keyframes shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+  .explain { display: none; background: var(--bg2); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 16px; padding: 14px 16px; margin: 4px 0 10px; font-size: 14.5px; }
+  .explain.show { display: block; animation: fade .3s; }
+  .explain b { display: block; font-size: 16px; margin-bottom: 6px; }
+
+  /* Արդյունք */
+  .center { text-align: center; }
+  .bigring { --p: 0; --c: var(--ok); width: 170px; height: 170px; margin: 18px auto; border-radius: 50%; display: grid; place-items: center; position: relative;
+    background: conic-gradient(var(--c) calc(var(--p) * 1%), rgba(255,255,255,.09) 0); transition: --p 1s; }
+  .bigring::before { content: ""; position: absolute; inset: 12px; border-radius: 50%; background: var(--bg); }
+  .bigring div { position: relative; font-size: 40px; font-weight: 800; }
+  .bigring small { display: block; font-size: 13px; color: var(--hint); font-weight: 500; }
+  .xp { display: inline-block; padding: 8px 16px; border-radius: 999px; background: rgba(255,200,60,.14); color: #ffd25e; font-weight: 700; margin: 4px 0 14px; }
+  .review { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px; text-align: left; margin-top: 6px; }
+  .review div { padding: 6px 0; font-size: 14px; }
+  .confetti { position: fixed; top: -30px; font-size: 22px; pointer-events: none; animation: fall linear forwards; z-index: 10; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: .8; } }
+
+  /* Բաժինների հարթակ */
+  .back { border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 12px; cursor: pointer; margin: 2px 0 8px; }
+  .sec { display: flex; align-items: center; gap: 14px; width: 100%; text-align: left; font: inherit; color: var(--text); background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 14px; margin-bottom: 12px; cursor: pointer; transition: transform .12s, background .2s; }
+  .sec:active { transform: scale(.98); background: var(--card2); }
+  .sec .ic { flex: none; width: 56px; height: 56px; border-radius: 16px; display: grid; place-items: center; font-size: 28px; }
+  .sec .tx { flex: 1; min-width: 0; }
+  .sec .tx b { display: block; font-size: 16px; }
+  .sec .tx small { display: block; color: var(--hint); font-size: 12.5px; margin-top: 2px; }
+  .sec .mini { height: 5px; border-radius: 3px; background: rgba(255,255,255,.09); margin-top: 9px; overflow: hidden; }
+  .sec .mini > i { display: block; height: 100%; border-radius: 3px; }
+  .sec .go { flex: none; width: 32px; height: 32px; border-radius: 50%; background: var(--card2); display: grid; place-items: center; color: var(--hint); font-size: 18px; }
+  .sec.soon { opacity: .62; }
+  .sec .badge { flex: none; font-size: 11px; padding: 4px 9px; border-radius: 999px; background: var(--card2); color: var(--hint); }
+  .toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom)); transform: translate(-50%, 20px); background: #2a2f4a; color: #fff; padding: 11px 18px; border-radius: 14px; font-size: 14px; opacity: 0; pointer-events: none; transition: .25s; z-index: 20; white-space: nowrap; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  .sp { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; text-align: left; font: inherit; color: var(--text); background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 12px; cursor: pointer; transition: transform .12s, background .2s; min-height: 112px; }
+  .sp:active { transform: scale(.97); background: var(--card2); }
+  .sp .ic { width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; font-size: 22px; }
+  .sp b { font-size: 14px; line-height: 1.25; }
+  .sp small { color: var(--hint); font-size: 12px; margin-top: auto; }
+  .sp.soon { opacity: .6; }
+</style>
+</head>
+<body>
+
+<!-- ՀԱՐԹԱԿԻ ԳԼԽԱՎՈՐ -->
+<div id="hub" class="screen active">
+  <div class="hello">
+    <div class="avatar">🩺</div>
+    <div>
+      <h2 id="hName">Բարև</h2>
+      <p>Ի՞նչ ենք սովորում այսօր</p>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="stat"><b id="hStreak">0</b><span>🔥 Շարք</span></div>
+    <div class="stat"><b id="hXp">0</b><span>⭐ Միավոր</span></div>
+    <div class="stat"><b id="hLvl">1</b><span>🎖 Մակարդակ</span></div>
+  </div>
+  <h3>ԲԱԺԻՆՆԵՐ</h3>
+  <div id="sections"></div>
+  <p class="disclaimer">Միայն ուսումնական նպատակով։ Չի փոխարինում պրոտոկոլներին և բժշկի որոշմանը։</p>
+</div>
+<div id="toast" class="toast"></div>
+
+<!-- ՄԱՍՆԱԳԻՏՈՒԹՅՈՒՆՆԵՐ -->
+<div id="spec" class="screen">
+  <button class="back" id="backHub2">‹ Բաժիններ</button>
+  <div class="hello">
+    <div class="avatar">🎓</div>
+    <div><h2>Մասնագիտություններ</h2><p>Ընտրիր ուղղությունը</p></div>
+  </div>
+  <button class="btn" id="specMix">🎲 Բոլոր քեյսերը խառը</button>
+  <div id="specList"></div>
+</div>
+
+<!-- ՇՏԱՊ ՕԳՆՈՒԹՅԱՆ ԲԱԺԻՆ -->
+<div id="home" class="screen">
+  <button class="back" id="backHub">‹ Բաժիններ</button>
+  <div class="hello">
+    <div class="avatar">🚑</div>
+    <div>
+      <h2 id="name">Բարև</h2>
+      <p id="lvl">Մակարդակ 1</p>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="stat"><b id="sStreak">0</b><span>🔥 Շարք</span></div>
+    <div class="stat"><b id="sXp">0</b><span>⭐ Միավոր</span></div>
+    <div class="stat"><b id="sDone">0/0</b><span>✅ Յուրացված</span></div>
+  </div>
+  <div class="xpbar"><div id="xpFill"></div></div>
+
+  <button class="btn" id="mixBtn">🎲 Խառը քվիզ</button>
+  <button class="btn ghost" id="weakBtn" style="display:none">🔁 Չյուրացրած քեյսերը</button>
+
+  <h3>ԹԵՄԱՆԵՐ</h3>
+  <div class="grid" id="topics"></div>
+
+  <p class="disclaimer">Միայն ուսումնական նպատակով։ Չի փոխարինում պրոտոկոլներին և բժշկի որոշմանը։</p>
+</div>
+
+<!-- ՔՎԻԶ -->
+<div id="quiz" class="screen">
+  <div class="top">
+    <button class="x" id="exitBtn">✕</button>
+    <div class="progress"><div id="bar"></div></div>
+    <div class="cnt" id="num"></div>
+  </div>
+  <div class="tags"><span class="tag" id="tTopic"></span><span class="tag" id="tLevel"></span></div>
+  <div class="case">
+    <h2 id="title"></h2>
+    <div class="story" id="story"></div>
+    <div class="q" id="question"></div>
+  </div>
+  <div id="options"></div>
+  <div class="explain" id="explain"><b id="verdict"></b><span id="why"></span></div>
+  <button class="btn" id="nextBtn" style="display:none">Հաջորդը</button>
+</div>
+
+<!-- ԱՐԴՅՈՒՆՔ -->
+<div id="result" class="screen center">
+  <div class="bigring" id="rRing"><div><span id="score"></span><small id="pct"></small></div></div>
+  <h2 id="rMsg" style="margin:0 0 6px"></h2>
+  <div class="xp" id="xpGain"></div>
+  <div class="review" id="review"></div>
+  <button class="btn" id="retryWrong" style="display:none">🔁 Սխալների վրա աշխատանք</button>
+  <button class="btn ghost" id="homeBtn">‹ Բաժին</button>
+</div>
+
+<script>
+const tg = window.Telegram && Telegram.WebApp;
+if (tg) {
+  tg.ready(); tg.expand();
+  try { tg.setHeaderColor("#0d0f16"); tg.setBackgroundColor("#0d0f16"); } catch (e) {}
+}
+const vibe = (t) => { try { tg.HapticFeedback.notificationOccurred(t); } catch (e) {} };
+const tap = () => { try { tg.HapticFeedback.selectionChanged(); } catch (e) {} };
+
+// ---- ՔԵՅՍԵՐ ----
+// c = ճիշտ տարբերակի ինդեքս (0-ից)
+const BASE_CASES = [];
+const EXTRA_CASES = [{"lvl": 2, "title": "Սրտաբանություն · քեյս 1", "story": "58-ամյա տղամարդը դիմել է 40 րոպե տևող սեղմող կրծքավանդակային ցավով, որը տարածվում է ձախ թևի վրա։ Սառը քրտինք է, ԶՃ-ն կայուն է։ 12 կապանի ԷկԳ-ում՝ ST-ի հստակ բարձրացում առաջային կապերում։", "q": "Ո՞րն է ճիշտ առաջնային մոտեցումը։", "o": ["Ասպիրին և անհապաղ ռեպերֆուզիա՝ նախընտրելի առաջնային PCI-ով", "Սպասել տրոպոնինի արդյունքին՝ ռեպերֆուզիայի որոշումից առաջ", "Միայն բետա-բլոկատոր և դիտարկում ընդհանուր բաժանմունքում", "Միայն նիտրոգլիցերին, ապա տուն ուղարկել ցավի թուլանալուց հետո"], "c": 0, "why": "Կրծքավանդակային ցավը՝ ST-ի հստակ բարձրացման հետ, սուր պսակաձև համախտանիշ է՝ ST-բարձրացումով (STEMI)։ Ախտորոշումը դրվում է կլինիկայով և ԷկԳ-ով, և տրոպոնինի արդյունքին սպասելը չպետք է ուշացնի ռեպերֆուզիան։ ESC 2023-ի ուղեցույցը STEMI-ի դեպքում հիմնական ռեպերֆուզիոն ռազմավարություն է համարում առաջնային PCI-ն (երբ այն ժամանակին հասանելի է), իսկ ասպիրինը տրվում է անմիջապես։ Կիրառվող չափանիշների համակարգ՝ ST-բարձրացման ԷկԳ չափանիշները (ESC 2023)։", "spec": ["card", "emerg"], "topic": "other"}, {"lvl": 2, "title": "Սրտաբանություն · քեյս 2", "story": "64-ամյա տղամարդը 3 ամիս է՝ ֆիզիկական ծանրաբեռնվածության ժամանակ շնչահեղձություն և սրունքների այտուց ունի։ Էխոկարդիոգրաֆիայով ձախ փորոքի արտամղման ֆրակցիան (LVEF) նվազած է՝ 30%։ Արատներ չկան, ԶՃ-ն և երիկամային ֆունկցիան թույլ են տալիս դեղեր ավելացնել։", "q": "Ո՞ր դեղախմբերն են ցուցված՝ մահացությունը և հոսպիտալացումները նվազեցնելու համար։", "o": ["Միայն օղակային դիուրետիկ", "Դիլտիազեմ կամ վերապամիլ", "Միայն դիգոքսին՝ որպես միակ դեղ", "ԱՓՖ ինհիբիտոր/ARNI, բետա-բլոկատոր, MRA և SGLT2 ինհիբիտոր"], "c": 3, "why": "ESC-ի սահմանմամբ՝ նվազած արտամղման ֆրակցիայով սրտային անբավարարության (HFrEF) չափանիշը LVEF ≤40% է։ 2021 թ. ESC ուղեցույցը (2023 թ. նպատակային թարմացմամբ) HFrEF-ի դեպքում կանխատեսումը բարելավող չորս դեղախումբ է առաջարկում՝ ԱՓՖ ինհիբիտոր/ARNI, բետա-բլոկատոր, MRA և SGLT2 ինհիբիտոր։ Օղակային դիուրետիկները թեթևացնում են ախտանշանները, բայց մահացությունը չեն նվազեցնում, իսկ դիլտիազեմը և վերապամիլը HFrEF-ում խորհուրդ չեն տրվում։", "spec": ["card"], "topic": "other"}, {"lvl": 2, "title": "Սրտաբանություն · քեյս 3", "story": "74-ամյա կինը՝ հիպերտոնիայով և 2-րդ տիպի շաքարային դիաբետով, ունի ԷկԳ-ով հաստատված ատրիալ ֆիբրիլյացիա։ Ախտանշանները թույլ են։ Մեխանիկական փական կամ միտրալ ստենոզ չկա, արյունահոսության ակտիվ աղբյուր կամ հակացուցում նույնպես չկա։", "q": "Ո՞րն է ինսուլտի կանխարգելման ճիշտ մոտեցումը։", "o": ["Միայն ասպիրին", "Բանավոր հակակոագուլյանտ՝ նախընտրելի ուղիղ ազդող (DOAC)", "Հակակոագուլյացիա պետք չէ, քանի որ ախտանշանները թույլ են", "Միայն ռիթմի վերահսկում ամիոդարոնով՝ առանց հակակոագուլյացիայի"], "c": 1, "why": "ԱՖ-ի դեպքում թրոմբոէմբոլիայի ռիսկը գնահատվում է CHA₂DS₂-VA սանդղակով։ Այս հիվանդի մոտ 3 միավոր է (տարիք 65–74՝ 1, հիպերտոնիա՝ 1, շաքարային դիաբետ՝ 1)։ 2024 թ. ESC ուղեցույցը հակակոագուլյացիան խորհուրդ է տալիս 2 և ավելի միավորի դեպքում, և DOAC-ները նախընտրելի են վիտամին K անտագոնիստներից (բացառությամբ մեխանիկական փականի կամ միտրալ ստենոզի)։ Ասպիրինը բավարար պաշտպանություն չէ, իսկ ռիթմի վերահսկումը թրոմբոէմբոլիայի ռիսկը չի վերացնում, ուստի հակակոագուլյացիայի կարիքը պահպանվում է։", "spec": ["card"], "topic": "other"}, {"lvl": 3, "title": "Սրտաբանություն · քեյս 4", "story": "56-ամյա տղամարդը բերվել է արագ սրտխփոցով և կրծքավանդակի ցավով։ Գիտակցությունը մթագնած է, մաշկը սառն է, ԶՃ՝ 72/40։ Մոնիտորի վրա՝ կանոնավոր նեղ QRS տախիկարդիա՝ մոտ 190/րոպե։ Երակային մուտքը ապահովված է։", "q": "Ո՞րն է ճիշտ առաջին բուժական քայլը։", "o": ["Վերապամիլ ներերակային արագ ներարկում", "Անսինխրոն (չսինխրոնիզացված) շոկ", "Սինխրոնիզացված էլեկտրական կարդիովերսիա (գիտակցության դեպքում՝ սեդացիայի ֆոնին)", "Բանավոր բետա-բլոկատոր և դիտարկում"], "c": 2, "why": "Տախիարիթմիան անկայուն է՝ կան կյանքին սպառնացող նշաններ (շոկ/հիպոտենզիա, գիտակցության խանգարում, միոկարդի իշեմիայի ցավ)։ Անկայուն հիվանդի մոտ առաջին քայլը սինխրոնիզացված շոկն է, ինչպես նշված է Resuscitation Council UK-ի 2025 թ. ալգորիթմում։ Դեղորայքային տարբերակները (օր.՝ վերապամիլ) հիպոտենզիայի պատճառով վտանգավոր են, իսկ անսինխրոն շոկը կարող է ընկնել սրտային ցիկլի խոցելի փուլում և առաջացնել փորոքային ֆիբրիլյացիա։ Կիրառվող չափանիշների համակարգ՝ անկայունության կյանքին սպառնացող նշանները (շոկ, սինկոպե, միոկարդի իշեմիա, ծանր սրտային անբավարարություն)։", "spec": ["card", "emerg"], "topic": "other"}, {"lvl": 3, "title": "Սրտաբանություն · քեյս 5", "story": "72-ամյա տղամարդը վերջին ամիսներին ֆիզիկական ծանրաբեռնվածության ժամանակ ունի շնչահեղձություն, ստենոկարդիկ ցավ և մեկ անգամ՝ ուշագնացություն։ Զննման ժամանակ՝ կոպիտ սիստոլիկ աղմուկ, որը տարածվում է քնային զարկերակների վրա։ Էխոկարդիոգրաֆիայով հաստատվել է ծանր աորտալ ստենոզ։", "q": "Ո՞րն է ճիշտ կառավարման ռազմավարությունը։", "o": ["Աորտալ փականի փոխարինում (վիրաբուժական կամ տրանսկաթետերային)՝ սրտային թիմի որոշմամբ", "Միայն դեղորայքային թերապիա՝ բետա-բլոկատոր և նիտրատներ", "Հետբեռնվածությունը ինտենսիվ վազոդիլատատորներով իջեցնել՝ ինտերվենցիայի փոխարեն", "Դիտարկել մինչև ախտանշանների ավելի ծանրանալը"], "c": 0, "why": "Ախտանշանային (շնչահեղձություն, ստենոկարդիա, սինկոպե) ծանր աորտալ ստենոզը, որը հաստատված է էխոկարդիոգրաֆիկ չափանիշներով (ըստ ESC/EACTS-ի), պահանջում է ինտերվենցիա․ դեղորայքային թերապիան արատը չի վերացնում և կանխատեսումը չի բարելավում։ Փականի փոխարինման եղանակը (վիրաբուժական կամ տրանսկաթետերային) ընտրվում է սրտային թիմի կողմից՝ ըստ հիվանդի տարիքի և ռիսկերի։ Ինտենսիվ վազոդիլատացիան վտանգավոր է ֆիքսված արգելքի պայմաններում՝ հիպոտենզիայի ռիսկի պատճառով։ 2025 թ. ESC/EACTS ուղեցույցը ախտանշանային ծանր աորտալ ստենոզի դեպքում առաջարկում է ինտերվենցիա։", "spec": ["card"], "topic": "other"}, {"lvl": 1, "title": "Սրտաբանություն · քեյս 6", "story": "28-ամյա տղամարդը դիմել է կրծքավանդակի սուր ցավով, որը ուժեղանում է խորը շնչելիս և պառկած դիրքում, իսկ առաջ թեքվելիս թուլանում է։ Երկու շաբաթ առաջ տեղափոխել է վիրուսային վարակ։ Զննմամբ՝ պերիկարդի շփման աղմուկ։ ԷկԳ-ում՝ ST հատվածի տարածուն բարձրացում և PR հատվածի իջեցում բազմաթիվ կապերում։", "q": "Ո՞րն է առաջին շարքի բուժումը։", "o": ["Շտապ առաջնային PCI (primary PCI)", "Ոչ ստերոիդային հակաբորբոքային դեղամիջոց (NSAID, օր.՝ ասպիրին կամ իբուպրոֆեն) + կոլխիցին", "Հակակոագուլյանտ (հեպարին)", "Միայն հակաբիոտիկներ"], "c": 1, "why": "Դիրքից կախված պլևրիտային ցավը, պերիկարդի շփման աղմուկը և ԷկԳ-ում ST-ի տարածուն բարձրացումը՝ PR իջեցմամբ, համապատասխանում են սուր պերիկարդիտին։ Կիրառված չափանիշների համակարգ՝ ESC-ի ախտորոշիչ չափանիշներ (առնվազն երկու նշան՝ պերիկարդիտային ցավ, շփման աղմուկ, ԷկԳ-ի բնորոշ փոփոխություններ, պերիկարդային արտահոսք)։ Առաջին շարքի բուժումը NSAID-ն է՝ կոլխիցինի հետ (կրկնության ռիսկը նվազեցնելու համար)։ STEMI-ից տարբերվում է ST-ի տարածուն (ոչ տարածքային) բարձրացմամբ և PR իջեցմամբ, ուստի PCI-ն ցուցված չէ, իսկ հակակոագուլյանտը մեծացնում է հեմոպերիկարդի ռիսկը։", "spec": ["card"], "topic": "other"}, {"lvl": 2, "title": "Սրտաբանություն · քեյս 7", "story": "45-ամյա կինը՝ թոքի քաղցկեղով, դիմել է առաջադիմող շնչահեղձության պատճառով։ ԶՃ՝ 82/58, ԲԿ՝ 126/րոպե, պարանոցի երակները լայնացած են, սրտի տոները խլացած են։ Էխոկարդիոգրաֆիայով՝ մեծ պերիկարդային արտահոսք և աջ փորոքի դիաստոլիկ փլուզում։", "q": "Ո՞րն է ճիշտ հաջորդ քայլը։", "o": ["Միզամուղներ (դիուրետիկներ)՝ նախաբեռնվածությունը նվազեցնելու համար", "Նիտրոգլիցերին ներերակային", "Շտապ պերիկարդիոցենտեզ (պերիկարդի պունկցիա)՝ էխոկարդիոգրաֆիկ ուղղորդմամբ", "Սպասողական դիտարկում՝ ճնշման ինքնուրույն նորմալացման սպասմամբ"], "c": 2, "why": "Հիպոտենզիան, պարանոցի երակների լայնացումը և խլացած սրտի տոները (Բեկի եռյակ), տախիկարդիան և աջ փորոքի դիաստոլիկ փլուզումը սրտի տամպոնադի նշաններ են։ Հեմոդինամիկ անկայուն տամպոնադի դեպքում կյանք փրկող միջամտությունը պերիկարդիոցենտեզն է (կամ վիրաբուժական դրենաժը)։ Միզամուղները և նիտրատները նվազեցնում են նախաբեռնվածությունը և կարող են խորացնել շոկը, քանի որ սրտի լցումը արդեն սահմանափակված է արտաքին ճնշումով։", "spec": ["card", "emerg"], "topic": "other"}, {"lvl": 3, "title": "Սրտաբանություն · քեյս 8", "story": "62-ամյա տղամարդը՝ վատ վերահսկվող հիպերտոնիայով, դիմել է հանկարծակի սկսված, ուժեղ, «պատռվող» ցավով կրծքավանդակում, որը տարածվում է մեջք։ Երկու թևերի ԶՃ-ն տարբեր է։ ԷկԳ-ում ST-ի բարձրացում չկա։ CT անգիոգրաֆիայով (CTA)՝ աճող աորտայի դիսեկցիա (Stanford տիպ A)։", "q": "Ո՞րն է ճիշտ կառավարումը։", "o": ["Շտապ վիրաբուժական միջամտություն՝ միաժամանակ ցավազրկմամբ և սրտի հաճախության ու զարկերակային ճնշման վերահսկմամբ", "Հակակոագուլյացիա հեպարինով և թրոմբոլիզիս", "Միայն դեղորայքային թերապիա և պլանային վիրահատություն հաջորդ ամիս", "Պլանային PCI"], "c": 0, "why": "Հանկարծակի «պատռվող» ցավը, թևերի ԶՃ-ի տարբերությունը և CTA-ով հաստատված աճող աորտայի դիսեկցիան (Stanford տիպ A) կյանքին սպառնացող վիճակ է։ Տիպ A դիսեկցիայի դեպքում ընտրության բուժումը շտապ վիրաբուժությունն է, իսկ նախավիրահատական փուլում վերահսկվում են ցավը, սրտի հաճախությունը և ճնշումը (սովորաբար բետա-բլոկատորով)։ Հակակոագուլյանտները և թրոմբոլիտիկները վտանգավոր են՝ արյունահոսության և տամպոնադի ռիսկի պատճառով։", "spec": ["card", "emerg"], "topic": "other"}, {"lvl": 2, "title": "Սրտաբանություն · քեյս 9", "story": "34-ամյա տղամարդը՝ ներերակային թմրամիջոցների օգտագործման անամնեզով, 2 շաբաթ ջերմություն, դող և թուլություն ունի։ Զննմամբ՝ նոր սիստոլիկ աղմուկ, եղունգների տակ գծային արյունազեղումներ։ Ջերմությունը՝ 38,9°C, հեմոդինամիկան կայուն է։ Հակաբիոտիկ դեռ չի ստացել։", "q": "Ո՞րն է ճիշտ հաջորդ քայլը։", "o": ["Անմիջապես սկսել հակաբիոտիկ՝ առանց արյան կուլտուրաների", "Բանավոր հակաբիոտիկ ամբուլատոր կարգով՝ առանց հետազոտության", "Միայն ջերմիջեցնող դեղեր և դիտարկում", "Մի քանի սեթ արյան կուլտուրաներ (տարբեր երակներից) մինչև հակաբիոտիկի սկսելը և էխոկարդիոգրաֆիա"], "c": 3, "why": "Ջերմությունը, նոր սիստոլիկ աղմուկը, ներերակային թմրամիջոցների օգտագործումը և ծայրամասային էմբոլիկ նշանները վարակային էնդոկարդիտի (IE) կասկածի հիմք են։ Ախտորոշումը հիմնվում է 2023 թ. Duke-ISCVID չափանիշների վրա (միկրոբիոլոգիական հետազոտություն, պատկերային հետազոտություն՝ առաջին հերթին էխոկարդիոգրաֆիա)։ Հեմոդինամիկ կայուն հիվանդի մոտ հակաբիոտիկից առաջ վերցվում են մի քանի սեթ կուլտուրաներ, քանի որ վաղ հակաբիոտիկը կարող է դարձնել կուլտուրաները բացասական և դժվարացնել հարուցչի որոշումը։", "spec": ["card"], "topic": "other"}, {"lvl": 3, "title": "Սրտաբանություն · քեյս 10", "story": "30-ամյա տղամարդը՝ Վոլֆ–Պարկինսոն–Ուայթի համախտանիշով (WPW), դիմել է սրտխփոցով։ ԷկԳ-ում՝ անկանոն, լայն QRS համալիրներով տախիկարդիա՝ տարբեր լայնությամբ QRS-ներով (նախահուզված ատրիալ ֆիբրիլյացիա, pre-excited AF)։ ԶՃ՝ 118/72, գիտակցությունը պահպանված է։", "q": "Ո՞ր դեղից ՊԵՏՔ Է խուսափել։", "o": ["Սինխրոնիզացված էլեկտրական կարդիովերսիա", "Պրոկաինամիդ ներերակային", "Վերապամիլ ներերակային (AV հանգույցը արգելակող կալցիումային անտագոնիստ)", "Իբուտիլիդ ներերակային"], "c": 2, "why": "Նախահուզված ատրիալ ֆիբրիլյացիայի դեպքում իմպուլսները նախասրտերից փորոքներ անցնում են օժանդակ ուղով։ AV հանգույցը արգելակող դեղերը (վերապամիլ, դիլտիազեմ, բետա-բլոկատորներ, ադենոզին, դիգոքսին) արգելափակում են նորմալ ուղին, իսկ օժանդակ ուղով հաղորդումը կարող է արագանալ՝ հանգեցնելով փորոքային ֆիբրիլյացիայի, ուստի դրանք հակացուցված են։ Ընտրվում են էլեկտրական կարդիովերսիա կամ այն դեղերը, որոնք ազդում են օժանդակ ուղու վրա (օր.՝ պրոկաինամիդ, իբուտիլիդ)։", "spec": ["card"], "topic": "other"}, {"lvl": 1, "title": "Շտապ օգնություն · քեյս 1", "story": "24-ամյա կինը՝ ծովախեցգետին ուտելուց 10 րոպե անց, ունի ամբողջ մարմնով ուրտիկարիա, շրթունքների այտուց, սուլոցային շնչառություն և գլխապտույտ։ ԶՃ՝ 78/44։", "q": "Ո՞ր դեղը պետք է տալ առաջինը։", "o": ["Էպինեֆրին (ադրենալին) միջմկանային՝ ազդրի կողմնային մակերեսին", "Դիֆենհիդրամին (հակահիստամին) ներերակային", "Մեթիլպրեդնիզոլոն ներերակային", "Սալբուտամոլ ինհալյացիա՝ որպես միակ դեղ"], "c": 0, "why": "Ալերգենի ազդեցությունից անմիջապես հետո առաջացած բազմահամակարգ ախտանշանները (մաշկ, շնչուղիներ, հիպոտենզիա) համապատասխանում են անաֆիլաքսիայի կլինիկական ախտորոշիչ չափանիշներին (WAO)։ Առաջին շարքի դեղը էպինեֆրինն է՝ միջմկանային, ազդրի կողմնային մակերեսին․ այն չպետք է հետաձգվի հակահիստամինների կամ ստերոիդների համար, որոնք օժանդակ են և կյանքը չեն փրկում։ Սալբուտամոլը կարող է օգնել բրոնխոսպազմին, բայց չի բուժում անաֆիլաքսիան։", "spec": ["emerg"], "topic": "other"}, {"lvl": 2, "title": "Շտապ օգնություն · քեյս 2", "story": "32-ամյա տղամարդը՝ ձախ կրծքավանդակի դանակահարությունից հետո, ունի ծանր շնչահեղձություն (ՇՀ՝ 34/րոպե), SpO₂՝ 80%, ձախ կողմում շնչառական աղմուկը չի լսվում, պարանոցի երակները լայնացած են, շնչափողը շեղված է աջ, ԶՃ՝ 74/40։", "q": "Ո՞րն է առաջին քայլը։", "o": ["Կրծքավանդակի ռենտգեն (X-ray)՝ ախտորոշումը հաստատելու համար", "Կրծքավանդակի CT scan՝ ախտորոշումը հաստատելու համար", "Ձախ կողմում անհապաղ ասեղային դեկոմպրեսիա, ապա կրծքավանդակային դրենաժ", "Միայն թթվածնային դիմակ և դիտարկում"], "c": 2, "why": "Շնչառական աղմուկի բացակայությունը մի կողմից, պարանոցի երակների լայնացումը, շնչափողի շեղումը և հիպոտենզիան լարվածության պնևմոթորաքսի (tension pneumothorax) նշաններ են։ Ախտորոշումը կլինիկական է, և պատկերային հետազոտության սպասումը կյանքին սպառնացող ուշացում է։ Առաջին քայլը տուժած կողմում ասեղային դեկոմպրեսիան է, հաջորդը՝ կրծքավանդակային դրենաժը։", "spec": ["emerg"], "topic": "other"}, {"lvl": 2, "title": "Շտապ օգնություն · քեյս 3", "story": "29-ամյա տղամարդը հայտնաբերվել է հանրային զուգարանում՝ կողքին ներարկիչով։ Չի արձագանքում, ՇՀ՝ 4/րոպե, աշակերտները կետաձև են, SpO₂՝ 78%, պուլսը շոշափվում է։", "q": "Ո՞րն է ճիշտ առաջնային գործողությունը։", "o": ["Ֆլումազենիլ ներերակային", "Ատրոպին ներերակային", "Գլյուկոզ ներերակային՝ որպես միակ գործողություն", "Շնչուղու ապահովում և օդափոխություն (bag-valve-mask), հետո նալոքսոն (naloxone)"], "c": 3, "why": "Գիտակցության անկումը, շնչառության ճնշումը և կետաձև աշակերտները օպիոիդային գերդոզավորման (opioid overdose) դասական եռյակն են։ Մահվան հիմնական պատճառը հիպօքսեմիան է, ուստի նախ ապահովվում է շնչուղին և օդափոխությունը, ապա տրվում է հակադոտը՝ նալոքսոնը։ Ֆլումազենիլը բենզոդիազեպինների հակադոտն է և այստեղ սխալ է, իսկ ատրոպինը և գլյուկոզը չեն վերացնում շնչառական ճնշումը։", "spec": ["emerg"], "topic": "other"}, {"lvl": 3, "title": "Շտապ օգնություն · քեյս 4", "story": "68-ամյա կինը՝ միզուղիների վարակի կասկածով, ունի ջերմություն և գիտակցության շփոթություն։ ԶՃ՝ 80/45։ Նախնական հեղուկային վերականգնումից հետո ճնշումը մնում է ցածր։", "q": "Ո՞ր վազոպրեսորն է առաջին ընտրության դեղը։", "o": ["Դոպամին՝ որպես առաջին ընտրություն", "Նորադրենալին (norepinephrine)", "Վազոպրեսին՝ որպես միակ առաջին դեղ", "Ֆենիլեֆրին՝ որպես առաջին ընտրություն"], "c": 1, "why": "Վարակի կասկածով հիվանդի մոտ հիպոտենզիան, որը պահպանվում է հեղուկային վերականգնումից հետո, համապատասխանում է սեպտիկ շոկի (septic shock) կլինիկական պատկերին (Sepsis-3 սահմանում)։ Surviving Sepsis Campaign-ը առաջին շարքի վազոպրեսոր խորհուրդ է տալիս նորադրենալինը․ վազոպրեսինը կարող է ավելացվել ճնշումը բարձրացնելու համար, եթե նորադրենալինը բավարար չէ։ Դոպամինը և ֆենիլեֆրինը առաջին ընտրության դեղեր չեն։", "spec": ["emerg"], "topic": "other"}, {"lvl": 2, "title": "Շտապ օգնություն · քեյս 5", "story": "35-ամյա տղամարդու մոտ գեներալիզացված տոնիկ-կլոնիկ նոպան տևում է արդեն ավելի քան 5 րոպե և կանգ չի առնում։ Երակային մուտք դեռ չի ապահովվել։", "q": "Ո՞րն է առաջին շարքի բուժումը։", "o": ["Ֆենիտոին միայնակ՝ որպես առաջին քայլ", "Բենզոդիազեպին՝ միջմկանային միդազոլամ (կամ երակային մուտքի դեպքում՝ լորազեպամ/դիազեպամ)", "Պրոպոֆոլով անհապաղ կոմայի մեջ գցել", "Կաշկանդել և սպասել նոպայի ինքնուրույն դադարին"], "c": 1, "why": "Գեներալիզացված տոնիկ-կլոնիկ նոպան, որը շարունակվում է ավելի քան 5 րոպե, դիտարկվում է որպես էպիլեպտիկ կարգավիճակ (status epilepticus), և բուժումը չի հետաձգվում (կիրառված չափանիշ՝ AES-ի գործառնական սահմանում)։ Սկզբնական թերապիայի ընտրության դեղերը բենզոդիազեպիններն են՝ միջմկանային միդազոլամ, երակային լորազեպամ կամ երակային դիազեպամ։ Երակ չլինելու դեպքում միջմկանային միդազոլամը հարմար տարբերակ է։ Ֆենիտոինը երկրորդ շարքի դեղ է, իսկ կաշկանդումը և սպասումը վտանգավոր են։", "spec": ["emerg"], "topic": "other"}];
+const ALL_CASES = BASE_CASES.concat(EXTRA_CASES);
+const CASES = ALL_CASES.filter(c => c.spec ? c.spec.includes("emerg") : true);
+
+const TOPICS = [
+  { id: "heart", n: "Սիրտ", e: "❤️", c: "#ff5a5f" },
+  { id: "brain", n: "Ուղեղ", e: "🧠", c: "#a78bfa" },
+  { id: "lungs", n: "Շնչառություն", e: "🫁", c: "#38bdf8" },
+  { id: "other", n: "Այլ իրավիճակներ", e: "⚡", c: "#fbbf24" }
+];
+const TOPIC_OF = {
+  "Կրծքավանդակի ցավ": "heart", "Սրտային ասթմա": "heart", "Սրտի կանգ": "heart",
+  "Հանկարծակի խոսքի խանգարում": "brain", "Երկարատև նոպա": "brain",
+  "Վթարից հետո շնչահեղձություն": "lungs", "Ծանր ասթմայի նոպա": "lungs",
+  "Մեղվի խայթոց": "other", "Անգիտակից դիաբետիկ": "other", "Դանդաղ շնչառություն": "other"
+};
+CASES.forEach(c => { c.topic = TOPIC_OF[c.title] || "other"; });
+const LEVELS = { 1: "🟢 Հեշտ", 2: "🟡 Միջին", 3: "🔴 Բարդ" };
+const LETTERS = ["Ա", "Բ", "Գ", "Դ", "Ե"];
+
+// ---- ՊԱՀՊԱՆՈՒՄ ----
+const KEY = "ems_quiz_v1";
+function load() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } }
+let S = Object.assign({ xp: 0, streak: 0, last: "", done: {} }, load());
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+const dayStr = (d) => d.toISOString().slice(0, 10);
+function touchStreak() {
+  const today = dayStr(new Date());
+  if (S.last === today) return;
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  S.streak = S.last === dayStr(y) ? S.streak + 1 : 1;
+  S.last = today;
+}
+
+// ---- ՕԺԱՆԴԱԿ ----
+const $ = (id) => document.getElementById(id);
+const screens = ["hub", "spec", "home", "quiz", "result"];
+let cur = "hub";
+function show(id) {
+  cur = id;
+  screens.forEach(s => $(s).classList.toggle("active", s === id));
+  window.scrollTo(0, 0);
+  try { id === "hub" ? tg.BackButton.hide() : tg.BackButton.show(); } catch (e) {}
+}
+let toastT;
+function toast(msg) {
+  const el = $("toast"); el.textContent = msg; el.classList.add("show");
+  clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("show"), 1800);
+}
+
+// ---- ՄԱՍՆԱԳԻՏՈՒԹՅՈՒՆՆԵՐ ----
+const SPEC_GROUPS = [
+  { t: "ԿԼԻՆԻԿԱԿԱՆ", items: [
+    { id: "card", n: "Սրտաբանություն", e: "❤️", c: "#ff5a5f" },
+    { id: "neuro", n: "Նյարդաբանություն", e: "🧠", c: "#a78bfa" },
+    { id: "pulm", n: "Թոքաբանություն", e: "🫁", c: "#38bdf8" },
+    { id: "emerg", n: "Շտապ օգնություն", e: "🚑", c: "#ff4d5a" },
+    { id: "endo", n: "Էնդոկրինոլոգիա", e: "🧬", c: "#f472b6" },
+    { id: "pharm", n: "Դեղաբանություն", e: "💊", c: "#34d399" },
+    { id: "gastro", n: "Գաստրոէնտերոլոգիա", e: "🍽️", c: "#fb923c" },
+    { id: "inf", n: "Ինֆեկցիաներ", e: "🦠", c: "#4ade80" },
+    { id: "peds", n: "Մանկաբուժություն", e: "🧸", c: "#fbbf24" },
+    { id: "ob", n: "Մանկաբարձություն և գինեկոլոգիա", e: "🤰", c: "#f9a8d4" },
+    { id: "surg", n: "Վիրաբուժություն", e: "🔪", c: "#94a3b8" },
+    { id: "psy", n: "Հոգեբուժություն", e: "💭", c: "#c4b5fd" },
+    { id: "onc", n: "Ուռուցքաբանություն", e: "🎗️", c: "#facc15" },
+    { id: "derm", n: "Մաշկաբանություն", e: "🩹", c: "#fdba74" },
+    { id: "lab", n: "Անալիզների մեկնաբանություն", e: "🧪", c: "#86efac" },
+    { id: "dent", n: "Ստոմատոլոգիա", e: "🦷", c: "#e2e8f0" },
+    { id: "cosm", n: "Կոսմետոլոգիա", e: "💉", c: "#fca5a5" }
+  ]},
+  { t: "ՀԻՄՆԱՐԱՐ ԵՎ ԱՅԼ", items: [
+    { id: "anat", n: "Անատոմիա", e: "🦴", c: "#d6b88a" },
+    { id: "phys", n: "Ֆիզիոլոգիա", e: "🔬", c: "#7dd3fc" },
+    { id: "path", n: "Պատոֆիզիոլոգիա", e: "🔥", c: "#fb7185" },
+    { id: "nurs", n: "Բուժքույրական գործ", e: "🩺", c: "#5eead4" },
+    { id: "lat", n: "Լատիներեն", e: "🏛️", c: "#cbd5e1" },
+    { id: "eng", n: "Բժշկական անգլերեն", e: "🔤", c: "#93c5fd" },
+    { id: "hist", n: "Բժշկության պատմություն", e: "📜", c: "#d4a373" },
+    { id: "fun", n: "Հետաքրքիր բժշկություն", e: "💡", c: "#fde047" }
+  ]}
+];
+const SPEC_ALL = SPEC_GROUPS.reduce((a, g) => a.concat(g.items), []);
+// Որ քեյսը որ մասնագիտությանն է պատկանում
+const SPEC_OF = {
+  "Կրծքավանդակի ցավ": ["card", "emerg"],
+  "Սրտային ասթմա": ["card", "pulm", "emerg"],
+  "Սրտի կանգ": ["card", "emerg"],
+  "Հանկարծակի խոսքի խանգարում": ["neuro", "emerg"],
+  "Երկարատև նոպա": ["neuro", "pharm", "emerg"],
+  "Վթարից հետո շնչահեղձություն": ["pulm", "surg", "emerg"],
+  "Ծանր ասթմայի նոպա": ["pulm", "pharm", "emerg"],
+  "Անգիտակից դիաբետիկ": ["endo", "emerg"],
+  "Դանդաղ շնչառություն": ["pharm", "emerg"],
+  "Մեղվի խայթոց": ["pharm", "emerg"]
+};
+const specCases = (id) => ALL_CASES.filter(c => (c.spec || SPEC_OF[c.title] || []).includes(id));
+let origin = "home";
+
+function renderSpec() {
+  const box = $("specList"); box.innerHTML = "";
+  SPEC_GROUPS.forEach(g => {
+    const h = document.createElement("h3"); h.textContent = g.t; box.appendChild(h);
+    const grid = document.createElement("div"); grid.className = "grid"; box.appendChild(grid);
+    g.items.forEach(sp => {
+      const list = specCases(sp.id);
+      const b = document.createElement("button");
+      b.className = "sp" + (list.length ? "" : " soon");
+      b.innerHTML = '<div class="ic" style="background:' + sp.c + '26">' + sp.e + '</div><b></b><small></small>';
+      b.querySelector("b").textContent = sp.n;
+      b.querySelector("small").textContent = list.length ? list.length + " քեյս" : "🔒 Շուտով";
+      b.onclick = () => {
+        tap();
+        if (list.length) { origin = "spec"; start(list, sp.n); }
+        else toast("Այս մասնագիտությունը շուտով կլինի 🚧");
+      };
+      grid.appendChild(b);
+    });
+  });
+}
+
+// ---- ՀԱՐԹԱԿԻ ԲԱԺԻՆՆԵՐ ----
+const SECTIONS = [
+  { n: "Մասնագիտություններ", e: "🎓", c: "#60a5fa", act: "spec" },
+  { n: "ԷԿԳ", d: "Ռիթմերի և փոփոխությունների ճանաչում", e: "📈", c: "#34d399" },
+  { n: "Աղյուսակ", d: "Լավագույնների ընդհանուր ցանկ", e: "🏆", c: "#a78bfa" }
+];
+function renderHub() {
+  const u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+  $("hName").textContent = u && u.first_name ? "Բարև, " + u.first_name + " 👋" : "Բարև 👋";
+  $("hStreak").textContent = S.streak;
+  $("hXp").textContent = S.xp;
+  $("hLvl").textContent = Math.floor(S.xp / 50) + 1;
+  const box = $("sections"); box.innerHTML = "";
+  SECTIONS.forEach(s => {
+    const live = !!s.act;
+    const b = document.createElement("button");
+    b.className = "sec" + (live ? "" : " soon");
+    let desc = s.d || "", prog = "";
+    if (s.act === "em") {
+      const d = CASES.filter(c => S.done[c.title]).length;
+      desc = CASES.length + " քեյս · յուրացված՝ " + d;
+      prog = '<div class="mini"><i style="width:' + Math.round(d / CASES.length * 100) + '%;background:' + s.c + '"></i></div>';
+    } else if (s.act === "spec") {
+      const on = SPEC_ALL.filter(sp => specCases(sp.id).length).length;
+      const dn = ALL_CASES.filter(c => S.done[c.title]).length;
+      desc = on + " ուղղություն · " + ALL_CASES.length + " քեյս · յուրացված՝ " + dn;
+      prog = '<div class="mini"><i style="width:' + Math.round(dn / ALL_CASES.length * 100) + '%;background:' + s.c + '"></i></div>';
+    }
+    b.innerHTML = '<div class="ic" style="background:' + s.c + '26">' + s.e + '</div>' +
+      '<div class="tx"><b></b><small></small>' + prog + '</div>' +
+      (live ? '<div class="go">›</div>' : '<span class="badge">🔒 Շուտով</span>');
+    b.querySelector("b").textContent = s.n;
+    b.querySelector("small").textContent = desc;
+    b.onclick = () => {
+      tap();
+      if (s.act === "em") goHome();
+      else if (s.act === "spec") goSpec();
+      else toast("Այս բաժինը շուտով կլինի 🚧");
+    };
+    box.appendChild(b);
+  });
+}
+function goHub() { renderHub(); show("hub"); }
+function goSpec() { renderSpec(); show("spec"); }
+function leaveQuiz() { origin === "spec" ? goSpec() : goHome(); }
+function onBack() { if (cur === "quiz" || cur === "result") leaveQuiz(); else if (cur === "home" || cur === "spec") goHub(); }
+const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+// ---- ԳԼԽԱՎՈՐ ----
+function renderHome() {
+  const u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+  $("name").textContent = u && u.first_name ? "Բարև, " + u.first_name + " 👋" : "Բարև 👋";
+  const lvl = Math.floor(S.xp / 50) + 1;
+  $("lvl").textContent = "Մակարդակ " + lvl;
+  $("sStreak").textContent = S.streak;
+  $("sXp").textContent = S.xp;
+  const done = CASES.filter(c => S.done[c.title]).length;
+  $("sDone").textContent = done + "/" + CASES.length;
+  $("xpFill").style.width = ((S.xp % 50) / 50 * 100) + "%";
+  $("weakBtn").style.display = done > 0 && done < CASES.length ? "block" : "none";
+
+  const box = $("topics"); box.innerHTML = "";
+  TOPICS.forEach(t => {
+    const list = CASES.filter(c => c.topic === t.id);
+    if (!list.length) return;
+    const d = list.filter(c => S.done[c.title]).length;
+    const b = document.createElement("button");
+    b.className = "topic";
+    b.innerHTML = '<div class="ring" style="--p:' + Math.round(d / list.length * 100) + ';--c:' + t.c + '"><span>' + t.e + '</span></div>' +
+      '<b>' + t.n + '</b><small>' + d + ' / ' + list.length + ' քեյս</small>';
+    b.onclick = () => { tap(); start(list, t.n); };
+    box.appendChild(b);
+  });
+}
+
+// ---- ՔՎԻԶ ----
+let order = [], idx = 0, score = 0, answered = false, wrongs = [], sessionXp = 0, label = "";
+
+function start(list, name) {
+  order = shuffle(list).sort((a, b) => a.lvl - b.lvl);
+  idx = 0; score = 0; wrongs = []; sessionXp = 0; label = name || "";
+  show("quiz"); render();
+}
+
+function render() {
+  answered = false;
+  const c = order[idx];
+  const sp = SPEC_ALL.find(x => x.id === (c.spec && c.spec[0]));
+  $("bar").style.width = (idx / order.length * 100) + "%";
+  $("num").textContent = (idx + 1) + "/" + order.length;
+  $("tTopic").textContent = sp ? sp.e + " " + sp.n : "";
+  $("tLevel").textContent = LEVELS[c.lvl];
+  $("title").textContent = c.title;
+  $("story").textContent = c.story;
+  $("question").textContent = c.q;
+  $("explain").classList.remove("show");
+  $("nextBtn").style.display = "none";
+
+  const opts = shuffle(c.o.map((txt, i) => ({ txt, ok: i === c.c })));
+  const box = $("options"); box.innerHTML = "";
+  opts.forEach((op, i) => {
+    const b = document.createElement("button");
+    b.className = "opt"; b.dataset.ok = op.ok ? "1" : "0";
+    b.innerHTML = '<span class="l">' + LETTERS[i] + '</span><span></span>';
+    b.lastChild.textContent = op.txt;
+    b.onclick = () => choose(b, op.ok, c);
+    box.appendChild(b);
+  });
+  window.scrollTo(0, 0);
+}
+
+function choose(btn, ok, c) {
+  if (answered) return;
+  answered = true;
+  const btns = [...document.querySelectorAll(".opt")];
+  btns.forEach(b => { b.disabled = true; if (b.dataset.ok === "1") b.classList.add("correct"); else if (b !== btn) b.classList.add("dim"); });
+  if (ok) {
+    score++; sessionXp += 10; S.done[c.title] = true; vibe("success");
+    $("verdict").textContent = "✅ Ճիշտ է, +10 ⭐";
+  } else {
+    btn.classList.add("wrong"); wrongs.push(c); vibe("error");
+    $("verdict").textContent = "❌ Սխալ է";
+  }
+  $("why").textContent = c.why;
+  $("explain").classList.add("show");
+  const nb = $("nextBtn");
+  nb.style.display = "block";
+  nb.textContent = idx === order.length - 1 ? "Տեսնել արդյունքը" : "Հաջորդը";
+  setTimeout(() => nb.scrollIntoView({ behavior: "smooth", block: "end" }), 80);
+}
+
+function next() {
+  idx++;
+  idx >= order.length ? finish() : render();
+}
+
+function finish() {
+  touchStreak();
+  S.xp += sessionXp; save();
+  show("result");
+  const pct = Math.round(score / order.length * 100);
+  $("score").textContent = score + "/" + order.length;
+  $("pct").textContent = pct + "%";
+  const ring = $("rRing");
+  ring.style.setProperty("--c", pct >= 80 ? "#2fd18b" : pct >= 50 ? "#ffc23c" : "#ff4d5a");
+  requestAnimationFrame(() => ring.style.setProperty("--p", pct));
+  $("rMsg").textContent = pct === 100 ? "Կատարյալ է 🏆" : pct >= 80 ? "Գերազանց 👏" : pct >= 50 ? "Լավ է, շարունակիր 👍" : "Արժե կրկնել 📚";
+  $("xpGain").textContent = "+" + sessionXp + " ⭐ · 🔥 " + S.streak + " օր";
+  const rv = $("review");
+  rv.innerHTML = wrongs.length ? "<b>Կրկնելու թեմաներ՝</b>" : "<b>Բոլոր պատասխանները ճիշտ են 🎉</b>";
+  wrongs.forEach(w => { const d = document.createElement("div"); d.textContent = "• " + w.title; rv.appendChild(d); });
+  $("retryWrong").style.display = wrongs.length ? "block" : "none";
+  if (pct >= 80) confetti();
+}
+
+function confetti() {
+  const em = ["🎉", "⭐", "✨", "💥", "🏆"];
+  for (let i = 0; i < 36; i++) {
+    const s = document.createElement("span");
+    s.className = "confetti"; s.textContent = em[i % em.length];
+    s.style.left = Math.random() * 100 + "vw";
+    s.style.animationDuration = (2 + Math.random() * 2.2) + "s";
+    s.style.animationDelay = (Math.random() * .6) + "s";
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 5200);
+  }
+}
+
+function goHome() { origin = "home"; renderHome(); show("home"); }
+
+$("mixBtn").onclick = () => { tap(); start(CASES, "Խառը"); };
+$("weakBtn").onclick = () => { tap(); start(CASES.filter(c => !S.done[c.title]), "Չյուրացրած"); };
+$("nextBtn").onclick = next;
+$("exitBtn").onclick = leaveQuiz;
+$("homeBtn").onclick = leaveQuiz;
+$("retryWrong").onclick = () => start(wrongs.slice(), "Սխալներ");
+$("backHub").onclick = goHub;
+$("backHub2").onclick = goHub;
+$("specMix").onclick = () => { tap(); origin = "spec"; start(ALL_CASES, "Խառը"); };
+try { tg.BackButton.onClick(onBack); } catch (e) {}
+
+renderHub();
+</script>
+</body>
+</html>
