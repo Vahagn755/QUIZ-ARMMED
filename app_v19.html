@@ -208,6 +208,7 @@
   .node button.cur{border-color:#2dd4bf;box-shadow:0 0 0 4px rgba(45,212,191,.18)}
   .node button.full{border-color:#fbbf24}
   .node .e{font-size:28px;display:block}.node .nm{font-size:13px;font-weight:700;display:block;margin-top:2px}
+  .node button.lock{opacity:.5;border-style:dashed}
   .node .st{font-size:15px;letter-spacing:2px;display:block;margin-top:3px;color:#fbbf24}.node small{color:var(--hint);font-size:11px}
 </style>
 </head>
@@ -513,16 +514,24 @@ function roadStars() {
 function goRoad() { renderRoad(); show("road"); }
 function renderRoad() {
   const box = $("roadBody"); box.innerHTML = "";
-  const rows = roadStars(); let cur1 = rows.findIndex(x => x.stars < 3);
+  const rows = roadStars();
+  // հաջորդ ուղղությունը բացվում է, երբ նախորդը ունի առնվազն 2 աստղ (≥60% յուրացված)
+  rows.forEach((x, i) => { x.open = i === 0 || rows[i - 1].stars >= 2; });
+  let cur1 = rows.findIndex(x => x.stars < 2 && x.open);
   rows.forEach((x, i) => {
     const w = document.createElement("div"); w.className = "node " + (i % 2 ? "r" : "l");
     const b = document.createElement("button");
-    b.className = (i === cur1 ? "cur" : "") + (x.stars === 3 ? " full" : "");
+    b.className = (i === cur1 ? "cur" : "") + (x.stars === 3 ? " full" : "") + (x.open ? "" : " lock");
     b.innerHTML = '<span class="e"></span><span class="nm"></span><span class="st"></span><small></small>';
-    b.querySelector(".e").textContent = x.sp.e; b.querySelector(".nm").textContent = x.sp.n;
+    b.querySelector(".e").textContent = x.open ? x.sp.e : "🔒"; b.querySelector(".nm").textContent = x.sp.n;
     b.querySelector(".st").textContent = "★".repeat(x.stars) + "☆".repeat(3 - x.stars);
     b.querySelector("small").textContent = x.d + "/" + x.l.length + (i === cur1 ? " · հիմա այստեղ" : "");
-    b.onclick = () => { tap(); origin = "spec"; start(x.l, x.sp.n); };
+    if (!x.open) b.querySelector("small").textContent = "Անցիր «" + rows[i - 1].sp.n + "»-ը (2 ★)";
+    b.onclick = () => {
+      tap();
+      if (!x.open) { toast("Նախ ստացիր 2 աստղ «" + rows[i - 1].sp.n + "»-ում"); return; }
+      origin = "spec"; start(x.l, x.sp.n);
+    };
     w.appendChild(b); box.appendChild(w);
   });
 }
@@ -568,10 +577,23 @@ async function goWeek() {
 // ---- ԴՈՒԵԼ ----
 let duelCode = null, dAns = [], duelCur = null;
 const fmtDT = (s) => fmtT(s);
-function shareDuel(link) {
+async function shareDuel(link, code) {
+  try {
+    if (code && tg && tg.shareMessage && tg.isVersionAtLeast && tg.isVersionAtLeast("8.0")) {
+      const r = await api("/api/duels/" + code + "/share", { method: "POST" });
+      tg.shareMessage(r.message_id, (sent) => { if (sent) toast("Մարտահրավերը ուղարկվեց ✅"); });
+      return;
+    }
+  } catch (e) {}
+  shareDuelLink(link);
+}
+function shareDuelLink(link) {
   const text = "⚔️ Մարտահրավեր եմ նետում՝ 5 բժշկական քեյս, տեսնենք ով ավելի շատ ճիշտ ու արագ կպատասխանի։";
   const url = "https://t.me/share/url?url=" + encodeURIComponent(link) + "&text=" + encodeURIComponent(text);
-  try { tg.openTelegramLink(url); } catch (e) { copyText(link); }
+  let ok = false;
+  try { if (tg && tg.openTelegramLink) { tg.openTelegramLink(url); ok = true; } } catch (e) {}
+  if (!ok) { try { window.open(url, "_blank"); ok = true; } catch (e) {} }
+  if (!ok) copyText(link); else toast("Ընտրիր ընկերոջդ, եթե ցանկը չբացվեց՝ օգտագործիր «Պատճենել»");
 }
 function resText(r) { return r === "win" ? "🏆 Դու հաղթեցիր" : r === "lose" ? "😔 Դու պարտվեցիր" : r === "draw" ? "🤝 Ոչ-ոքի" : "⏳ Սպասում ենք"; }
 async function goDuel() {
@@ -636,8 +658,9 @@ function showDuel(d, fresh) {
     if (!d.my_done) { const b = document.createElement("button"); b.className = "btn2"; b.textContent = "▶️ Սկսել"; b.onclick = () => playDuel(d); body.appendChild(b); }
   }
   if (d.role === "creator" && d.status === "waiting") {
-    const b = document.createElement("button"); b.className = "btn2 ghost"; b.textContent = "📤 Ուղարկել ընկերոջը"; b.onclick = () => shareDuel(d.link); body.appendChild(b);
+    const b = document.createElement("button"); b.className = "btn2 ghost"; b.textContent = "📤 Ուղարկել ընկերոջը"; b.onclick = () => shareDuel(d.link, d.code); body.appendChild(b);
     const c = document.createElement("button"); c.className = "btn2 ghost"; c.textContent = "🔗 Պատճենել հղումը"; c.onclick = () => { copyText(d.link); toast("Հղումը պատճենվեց"); }; body.appendChild(c);
+    const lk = document.createElement("p"); lk.className = "msg"; lk.style.cssText = "padding:4px;word-break:break-all;user-select:all;-webkit-user-select:all;font-size:12px"; lk.textContent = d.link; body.appendChild(lk);
   }
   if (d.status !== "done") { const r = document.createElement("button"); r.className = "btn2 ghost"; r.textContent = "🔄 Թարմացնել"; r.onclick = () => openDuel(d.code); body.appendChild(r); }
   const bk = document.createElement("button"); bk.className = "link"; bk.textContent = "‹ Բոլոր դուելները"; bk.onclick = goDuel; body.appendChild(bk);
