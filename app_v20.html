@@ -508,7 +508,7 @@ function roadStars() {
   return SPEC_ALL.map(sp => {
     const l = specCases(sp.id);
     // առանց Plus-ի առաջընթացը հաշվում ենք միայն հասանելի (անվճար) քեյսերով, որ ճանապարհը չփակվի
-    const pool = PLUS ? l : l.filter(c => !isPlusCase(c));
+    const pool = l.filter(c => !isPlusCase(c)); // ճանապարհը բոլորի համար՝ ուղղության առաջին 5 քեյսով
     const d = pool.filter(c => S.done[c.title]).length;
     const r = pool.length ? d / pool.length : 1;
     const fr = l.filter(c => !isPlusCase(c));
@@ -530,12 +530,16 @@ function renderRoad() {
     b.innerHTML = '<span class="e"></span><span class="nm"></span><span class="st"></span><small></small>';
     b.querySelector(".e").textContent = x.open ? x.sp.e : "🔒"; b.querySelector(".nm").textContent = x.sp.n;
     b.querySelector(".st").textContent = "★".repeat(x.stars) + "☆".repeat(3 - x.stars);
-    b.querySelector("small").textContent = x.d + "/" + x.pool.length + (x.locked ? " · 🔒" + x.locked + " Plus" : "") + (i === cur1 ? " · հիմա այստեղ" : "");
+    b.querySelector("small").textContent = x.d + "/" + x.pool.length + (x.locked && !PLUS ? " · 🔒" + x.locked + " Plus" : "") + (i === cur1 ? " · հիմա այստեղ" : "");
     if (!x.open) b.querySelector("small").textContent = "Լուծիր «" + rows[i - 1].sp.n + "»-ի 5 քեյսը";
     b.onclick = () => {
       tap();
       if (!x.open) { toast("Նախ լուծիր «" + rows[i - 1].sp.n + "»-ի 5 քեյսը"); return; }
-      origin = "road"; start(x.l, x.sp.n);
+      origin = "road";
+      // նախ տալիս ենք դեռ չլուծված քեյսերը, որ նույնը չկրկնվի
+      const frUn = x.pool.filter(c => !S.done[c.title]);
+      const list = frUn.length ? frUn : x.pool;
+      start(list, x.sp.n, true);
     };
     w.appendChild(b); box.appendChild(w);
   });
