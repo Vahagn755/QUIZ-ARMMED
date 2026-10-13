@@ -506,18 +506,23 @@ function renderAch() {
 // ---- ՃԱՆԱՊԱՐՀ ----
 function roadStars() {
   return SPEC_ALL.map(sp => {
-    const l = specCases(sp.id); const d = l.filter(c => S.done[c.title]).length;
-    const r = l.length ? d / l.length : 0;
-    return { sp, l, d, stars: !l.length ? 0 : r >= 1 ? 3 : r >= 0.6 ? 2 : r >= 0.25 ? 1 : 0 };
+    const l = specCases(sp.id);
+    // առանց Plus-ի առաջընթացը հաշվում ենք միայն հասանելի (անվճար) քեյսերով, որ ճանապարհը չփակվի
+    const pool = PLUS ? l : l.filter(c => !isPlusCase(c));
+    const d = pool.filter(c => S.done[c.title]).length;
+    const r = pool.length ? d / pool.length : 1;
+    const fr = l.filter(c => !isPlusCase(c));
+    const pass = fr.filter(c => S.done[c.title]).length >= Math.min(5, fr.length);
+    return { sp, l, pool, pass, locked: l.length - pool.length, d, stars: !l.length ? 0 : r >= 1 ? 3 : r >= 0.6 ? 2 : r >= 0.25 ? 1 : 0 };
   }).filter(x => x.l.length);
 }
 function goRoad() { renderRoad(); show("road"); }
 function renderRoad() {
   const box = $("roadBody"); box.innerHTML = "";
   const rows = roadStars();
-  // հաջորդ ուղղությունը բացվում է, երբ նախորդը ունի առնվազն 2 աստղ (≥60% յուրացված)
-  rows.forEach((x, i) => { x.open = i === 0 || rows[i - 1].stars >= 2; });
-  let cur1 = rows.findIndex(x => x.stars < 2 && x.open);
+  // հաջորդ ուղղությունը բացվում է, երբ նախորդում լուծված է 5 քեյս (բոլորի համար նույնը)
+  rows.forEach((x, i) => { x.open = i === 0 || rows[i - 1].pass; });
+  let cur1 = rows.findIndex(x => !x.pass && x.open);
   rows.forEach((x, i) => {
     const w = document.createElement("div"); w.className = "node " + (i % 2 ? "r" : "l");
     const b = document.createElement("button");
@@ -525,12 +530,12 @@ function renderRoad() {
     b.innerHTML = '<span class="e"></span><span class="nm"></span><span class="st"></span><small></small>';
     b.querySelector(".e").textContent = x.open ? x.sp.e : "🔒"; b.querySelector(".nm").textContent = x.sp.n;
     b.querySelector(".st").textContent = "★".repeat(x.stars) + "☆".repeat(3 - x.stars);
-    b.querySelector("small").textContent = x.d + "/" + x.l.length + (i === cur1 ? " · հիմա այստեղ" : "");
-    if (!x.open) b.querySelector("small").textContent = "Անցիր «" + rows[i - 1].sp.n + "»-ը (2 ★)";
+    b.querySelector("small").textContent = x.d + "/" + x.pool.length + (x.locked ? " · 🔒" + x.locked + " Plus" : "") + (i === cur1 ? " · հիմա այստեղ" : "");
+    if (!x.open) b.querySelector("small").textContent = "Լուծիր «" + rows[i - 1].sp.n + "»-ի 5 քեյսը";
     b.onclick = () => {
       tap();
-      if (!x.open) { toast("Նախ ստացիր 2 աստղ «" + rows[i - 1].sp.n + "»-ում"); return; }
-      origin = "spec"; start(x.l, x.sp.n);
+      if (!x.open) { toast("Նախ լուծիր «" + rows[i - 1].sp.n + "»-ի 5 քեյսը"); return; }
+      origin = "road"; start(x.l, x.sp.n);
     };
     w.appendChild(b); box.appendChild(w);
   });
@@ -615,11 +620,24 @@ async function goDuel() {
         const l = document.createElement("span");
         l.textContent = (x.other ? "vs " + x.other : "Սպասում է ընկերոջը") + " · " + (x.status === "done" ? resText(x.result) : x.my_done ? "⏳ Սպասում ենք մրցակցին" : "▶️ Քո հերթն է");
         const b = document.createElement("button"); b.className = "medals"; b.textContent = "Բացել";
-        b.onclick = () => openDuel(x.code); r.appendChild(l); r.appendChild(b); pn.appendChild(r);
+        b.onclick = () => openDuel(x.code);
+        const bx = document.createElement("span"); bx.style.cssText = "display:flex;gap:6px;flex:none"; bx.appendChild(b);
+        if (x.role === "creator" && x.status !== "done") {
+          const dl = document.createElement("button"); dl.className = "medals"; dl.textContent = "🗑"; dl.onclick = () => deleteDuel(x.code);
+          bx.appendChild(dl);
+        }
+        r.appendChild(l); r.appendChild(bx); pn.appendChild(r);
       });
       body.appendChild(pn);
     }
   } catch (e) { note(body, "Չհաջողվեց բեռնել։ Փորձիր մի փոքր անց։"); }
+}
+function deleteDuel(code) {
+  askResume("Ջնջե՞լ այս դուելը։ Այն կվերանա նաև ընկերոջդ մոտ։", async (yes) => {
+    if (!yes) return;
+    try { await api("/api/duels/" + code, { method: "DELETE" }); toast("Դուելը ջնջվեց"); goDuel(); }
+    catch (e) { toast("Չհաջողվեց ջնջել"); }
+  });
 }
 async function createDuel() {
   const pool = ALL_CASES.filter(c => c.id && !isPlusCase(c));
@@ -663,6 +681,9 @@ function showDuel(d, fresh) {
     const lk = document.createElement("p"); lk.className = "msg"; lk.style.cssText = "padding:4px;word-break:break-all;user-select:all;-webkit-user-select:all;font-size:12px"; lk.textContent = d.link; body.appendChild(lk);
   }
   if (d.status !== "done") { const r = document.createElement("button"); r.className = "btn2 ghost"; r.textContent = "🔄 Թարմացնել"; r.onclick = () => openDuel(d.code); body.appendChild(r); }
+  if (d.role === "creator" && d.status !== "done") {
+    const dl = document.createElement("button"); dl.className = "link"; dl.textContent = "🗑 Ջնջել այս դուելը"; dl.onclick = () => deleteDuel(d.code); body.appendChild(dl);
+  }
   const bk = document.createElement("button"); bk.className = "link"; bk.textContent = "‹ Բոլոր դուելները"; bk.onclick = goDuel; body.appendChild(bk);
 }
 function playDuel(d) {
@@ -904,7 +925,7 @@ async function toggleHidden() {
 }
 function goHub() { renderHub(); show("hub"); }
 function goSpec() { renderSpec(); show("spec"); }
-function leaveQuiz() { stopTimer(); examMode = false; if (duelCode) { duelCode = null; goDuel(); return; } origin === "hub" ? goHub() : origin === "spec" ? goSpec() : goHome(); }
+function leaveQuiz() { stopTimer(); examMode = false; if (duelCode) { duelCode = null; goDuel(); return; } origin === "hub" ? goHub() : origin === "spec" ? goSpec() : origin === "road" ? goRoad() : goHome(); }
 function onBack() { if (cur === "quiz" || cur === "result") leaveQuiz(); else if (cur === "home" || cur === "spec" || cur === "board" || cur === "plus" || cur === "ach" || cur === "week" || cur === "road") goHub(); else if (cur === "duel") goHub(); }
 const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
@@ -1293,6 +1314,9 @@ $("backHub2").onclick = goHub;
 $("backHub3").onclick = goHub;
 $("backHub4").onclick = goHub;
 $("backAch").onclick = goHub;
+$("backDuel").onclick = goHub;
+$("backWeek").onclick = goHub;
+$("backRoad").onclick = goHub;
 $("medalsBtn").onclick = () => { tap(); renderAch(); show("ach"); };
 $("plusBuy").onclick = buyPlus;
 $("modeSelf").onclick = () => { GIFT_MODE = false; renderPlus(); };
